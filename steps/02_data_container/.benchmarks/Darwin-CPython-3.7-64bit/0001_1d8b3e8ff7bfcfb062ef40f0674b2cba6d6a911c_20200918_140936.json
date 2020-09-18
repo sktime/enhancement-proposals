@@ -1,0 +1,139 @@
+{
+    "machine_info": {
+        "node": "mloning.local",
+        "processor": "i386",
+        "machine": "x86_64",
+        "python_compiler": "Clang 10.0.1 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.7.8",
+        "python_version": "3.7.8",
+        "python_build": [
+            "default",
+            "Jul 31 2020 02:37:09"
+        ],
+        "release": "19.6.0",
+        "system": "Darwin",
+        "cpu": {
+            "vendor_id": "unknown",
+            "hardware": "unknown",
+            "brand": "unknown"
+        }
+    },
+    "commit_info": {
+        "id": "1d8b3e8ff7bfcfb062ef40f0674b2cba6d6a911c",
+        "time": "2020-09-18T15:06:35+01:00",
+        "author_time": "2020-09-18T15:06:35+01:00",
+        "dirty": false,
+        "project": "enhancement-proposals",
+        "branch": "master"
+    },
+    "benchmarks": [
+        {
+            "group": null,
+            "name": "test_tsf_nested",
+            "fullname": "benchmarks/test_tsf.py::test_tsf_nested",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8548216030000013,
+                "max": 0.8704445840000004,
+                "mean": 0.8583795408000003,
+                "stddev": 0.006761158928781734,
+                "rounds": 5,
+                "median": 0.8558248370000001,
+                "iqr": 0.004565436249999166,
+                "q1": 0.8549280602500007,
+                "q3": 0.8594934964999998,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.8548216030000013,
+                "hd15iqr": 0.8704445840000004,
+                "ops": 1.1649858279101235,
+                "total": 4.291897704000002,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_tsf_ak_record",
+            "fullname": "benchmarks/test_tsf.py::test_tsf_ak_record",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 74.793460643,
+                "max": 77.155932608,
+                "mean": 75.956897678,
+                "stddev": 0.9518842062298885,
+                "rounds": 5,
+                "median": 76.10340002200002,
+                "iqr": 1.5363441915000067,
+                "q1": 75.1248877295,
+                "q3": 76.66123192100001,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 74.793460643,
+                "hd15iqr": 77.155932608,
+                "ops": 0.013165361284754496,
+                "total": 379.78448839000004,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_tsf_ak_3d",
+            "fullname": "benchmarks/test_tsf.py::test_tsf_ak_3d",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 77.22515160899991,
+                "max": 82.109385299,
+                "mean": 79.33431005300001,
+                "stddev": 1.780455392960092,
+                "rounds": 5,
+                "median": 78.94296148100011,
+                "iqr": 1.839202308500063,
+                "q1": 78.39498541274997,
+                "q3": 80.23418772125004,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 77.22515160899991,
+                "hd15iqr": 82.109385299,
+                "ops": 0.012604886830577349,
+                "total": 396.67155026500006,
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2020-09-18T14:27:55.439745",
+    "version": "3.2.3"
+}

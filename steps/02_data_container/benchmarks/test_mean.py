@@ -9,9 +9,9 @@ from sktime.utils._testing.series_as_features import \
     make_classification_problem
 from sktime.utils.data_container import tabularize
 
-from benchmarks.benchmark import ak_3d_arr
-from benchmarks.benchmark import ak_record_arr
-from benchmarks.benchmark import np_arr
+from benchmarks.utils import ak_3d_arr
+from benchmarks.utils import ak_record_arr
+from benchmarks.utils import np_arr
 
 
 def _mean(X, axis=-1):

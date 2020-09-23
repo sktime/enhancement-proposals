@@ -17,7 +17,14 @@ def _slice(X):
     return X[10:20, 5:15, 50:60]
 
 
-X, y = make_classification_problem(n_instances=100,
+def _nested_slice(X):
+    x = X.iloc[10:20, 5:15]
+    return np.asarray([[x.iloc[i, j].iloc[50:60].to_numpy()
+                        for j in range(x.shape[1])]
+                       for i in range(x.shape[0])])
+
+
+X, _ = make_classification_problem(n_instances=100,
                                    n_timepoints=100,
                                    n_columns=20)
 
@@ -39,4 +46,9 @@ def test_ak_record_slice(benchmark):
 def test_np_slice(benchmark):
     x = np_arr(X)
     actual = benchmark(_slice, x)
+    np.testing.assert_array_equal(actual, expected)
+
+
+def test_nested_slice(benchmark):
+    actual = benchmark(_nested_slice, X)
     np.testing.assert_array_equal(actual, expected)

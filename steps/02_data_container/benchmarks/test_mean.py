@@ -18,11 +18,15 @@ def _mean(X, axis=-1):
     return np.mean(X, axis=axis)
 
 
-def _nested_mean(X, axis=-1):
+def _tabularize_mean(X, axis=-1):
     return tabularize(X).to_numpy().mean(axis=axis)
 
 
-X, y = make_classification_problem(n_instances=100, n_timepoints=100)
+def _nested_mean(X):
+    return np.asarray([X.iloc[i, 0].mean() for i in range(X.shape[0])])
+
+
+X, y = make_classification_problem(n_instances=100, n_columns=1, n_timepoints=100)
 
 expected = _mean(np_arr(X))
 
@@ -47,4 +51,9 @@ def test_np_mean(benchmark):
 
 def test_nested_mean(benchmark):
     actual = benchmark(_nested_mean, X)
+    np.testing.assert_array_equal(expected, actual.reshape(-1, 1))
+
+
+def test_tabularize_mean(benchmark):
+    actual = benchmark(_tabularize_mean, X)
     np.testing.assert_array_equal(expected, actual.reshape(-1, 1))

@@ -1,10 +1,10 @@
-# Data container
+# STEP02: Adding support for 3d np.array/awkward-array as main data containers
 
 Contributors: @fkiraly, @matteogales, @mloning, @big-o, @prockenschaub
 
 For preliminary discussions, see issue [#15](https://github.com/alan-turing-institute/sktime/issues/15).
 
-For development work, see the [data-container](https://github.com/alan-turing-institute/sktime/tree/data-container) branch.
+For experimental/prototyping work, see the [data-container](https://github.com/alan-turing-institute/sktime/tree/data-container) branch.
 
 ## Contents
 * [Problem statement](#Problem-statement)
@@ -16,6 +16,14 @@ For development work, see the [data-container](https://github.com/alan-turing-in
 * [List of Python data containers](#Alternative-data-containers)
 
 # Problem statement
+Our current data container for the series-as-features setting is a nested pd.DataFrame. While very flexible, the nested pd.DataFrame is slow and continues to cause a lot of bugs and confusion on the side of users and contributors. 
+
+In this enhancement proposal, I propose to add support for 
+* 3d numpy arrays with shape (n_instances, n_variables, n_timepoints) for time-homogeneous data, and 
+* awkward-array for time-heterogeneous data. 
+
+Eventually, I'd like to fully remove support for the nested pd.DataFrame. 
+
 ## Representing time series
 Time series data can arise in different settings, and time series data comes in different forms and shapes. For machine learning with time series, it is important to understand the different forms such data may take. The data can come in the form of a single (or univariate) time series; but in many applications, multiple time series are observed. It is crucial to distinguish the two fundamentally different ways in which this may happen:
 * Multivariate time series data, where two or more variables are observed over time, with variables representing different kinds of measurements within a single experimental unit;

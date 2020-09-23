@@ -1,0 +1,174 @@
+{
+    "machine_info": {
+        "node": "mloning.local",
+        "processor": "i386",
+        "machine": "x86_64",
+        "python_compiler": "Clang 10.0.1 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.7.8",
+        "python_version": "3.7.8",
+        "python_build": [
+            "default",
+            "Jul 31 2020 02:37:09"
+        ],
+        "release": "19.6.0",
+        "system": "Darwin",
+        "cpu": {
+            "vendor_id": "unknown",
+            "hardware": "unknown",
+            "brand": "unknown"
+        }
+    },
+    "commit_info": {
+        "id": "08d14a7e2f042d4250f49f84bfa5128be4be046a",
+        "time": "2020-09-23T15:23:55+01:00",
+        "author_time": "2020-09-23T15:23:55+01:00",
+        "dirty": false,
+        "project": "enhancement-proposals",
+        "branch": "master"
+    },
+    "benchmarks": [
+        {
+            "group": null,
+            "name": "test_ak_3d_slice",
+            "fullname": "benchmarks/test_slice.py::test_ak_3d_slice",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.925700000000475e-05,
+                "max": 0.0001859139999997872,
+                "mean": 3.1616679927197705e-05,
+                "stddev": 8.29980109190148e-06,
+                "rounds": 7692,
+                "median": 3.032300000005428e-05,
+                "iqr": 6.829999998902991e-07,
+                "q1": 3.006199999999737e-05,
+                "q3": 3.074499999988767e-05,
+                "iqr_outliers": 500,
+                "stddev_outliers": 226,
+                "outliers": "226;500",
+                "ld15iqr": 2.925700000000475e-05,
+                "hd15iqr": 3.1770000000097554e-05,
+                "ops": 31628.87445179743,
+                "total": 0.24319550200000473,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_ak_record_slice",
+            "fullname": "benchmarks/test_slice.py::test_ak_record_slice",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.64309999998369e-05,
+                "max": 0.00020987600000044182,
+                "mean": 3.9654679217532346e-05,
+                "stddev": 1.0753564462391914e-05,
+                "rounds": 6799,
+                "median": 3.780399999975259e-05,
+                "iqr": 9.197499997171121e-07,
+                "q1": 3.735900000023662e-05,
+                "q3": 3.827874999995373e-05,
+                "iqr_outliers": 428,
+                "stddev_outliers": 277,
+                "outliers": "277;428",
+                "ld15iqr": 3.64309999998369e-05,
+                "hd15iqr": 3.9663999999994815e-05,
+                "ops": 25217.7049400484,
+                "total": 0.26961216400000243,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_np_slice",
+            "fullname": "benchmarks/test_slice.py::test_np_slice",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.40466666711355e-07,
+                "max": 1.0272800000047748e-05,
+                "mean": 3.6248951040309057e-07,
+                "stddev": 1.4943514864990469e-07,
+                "rounds": 188965,
+                "median": 3.47400000026236e-07,
+                "iqr": 3.599999942593936e-09,
+                "q1": 3.4600000002882326e-07,
+                "q3": 3.495999999714172e-07,
+                "iqr_outliers": 25091,
+                "stddev_outliers": 2087,
+                "outliers": "2087;25091",
+                "ld15iqr": 3.4086666668523926e-07,
+                "hd15iqr": 3.5499999994452007e-07,
+                "ops": 2758700.517674455,
+                "total": 0.06849783033328126,
+                "iterations": 15
+            }
+        },
+        {
+            "group": null,
+            "name": "test_nested_slice",
+            "fullname": "benchmarks/test_slice.py::test_nested_slice",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.003940833999999782,
+                "max": 0.0056903269999999395,
+                "mean": 0.004248250891089122,
+                "stddev": 0.00029623552317253616,
+                "rounds": 202,
+                "median": 0.004174864999999972,
+                "iqr": 0.00025612600000002317,
+                "q1": 0.004073574000000413,
+                "q3": 0.004329700000000436,
+                "iqr_outliers": 13,
+                "stddev_outliers": 18,
+                "outliers": "18;13",
+                "ld15iqr": 0.003940833999999782,
+                "hd15iqr": 0.004719542000000132,
+                "ops": 235.39099399650348,
+                "total": 0.8581466800000026,
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2020-09-23T14:24:16.183901",
+    "version": "3.2.3"
+}

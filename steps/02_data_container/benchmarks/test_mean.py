@@ -11,7 +11,7 @@ from sktime.utils.data_container import tabularize
 
 from benchmarks.utils import ak_3d_arr
 from benchmarks.utils import ak_record_arr
-from benchmarks.utils import np_arr
+from benchmarks.utils import np_3d_arr
 
 
 def _mean(X, axis=-1):
@@ -28,7 +28,7 @@ def _nested_mean(X):
 
 X, y = make_classification_problem(n_instances=100, n_columns=1, n_timepoints=100)
 
-expected = _mean(np_arr(X))
+expected = _mean(np_3d_arr(X))
 
 
 def test_ak_3d_mean(benchmark):
@@ -44,7 +44,7 @@ def test_ak_record_mean(benchmark):
 
 
 def test_np_mean(benchmark):
-    x = np_arr(X)
+    x = np_3d_arr(X)
     actual = benchmark(_mean, x)
     np.testing.assert_array_equal(expected, actual)
 

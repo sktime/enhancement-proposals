@@ -10,7 +10,7 @@ from sktime.utils._testing.series_as_features import \
 
 from benchmarks.utils import ak_3d_arr
 from benchmarks.utils import ak_record_arr
-from benchmarks.utils import np_arr
+from benchmarks.utils import np_3d_arr
 
 
 def _slice(X):
@@ -28,7 +28,7 @@ X, _ = make_classification_problem(n_instances=100,
                                    n_timepoints=100,
                                    n_columns=20)
 
-expected = _slice(np_arr(X))
+expected = _slice(np_3d_arr(X))
 
 
 def test_ak_3d_slice(benchmark):
@@ -44,7 +44,7 @@ def test_ak_record_slice(benchmark):
 
 
 def test_np_slice(benchmark):
-    x = np_arr(X)
+    x = np_3d_arr(X)
     actual = benchmark(_slice, x)
     np.testing.assert_array_equal(actual, expected)
 

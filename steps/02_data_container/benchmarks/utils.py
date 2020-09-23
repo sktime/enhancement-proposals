@@ -51,5 +51,5 @@ def ak_record_arr(X):
     return _make_ak_array(X)
 
 
-def np_arr(X):
+def np_3d_arr(X):
     return nested_to_3d_numpy(X)

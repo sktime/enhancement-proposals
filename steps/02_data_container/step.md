@@ -1,70 +1,111 @@
-# Data container
+# STEP02: Adding support for 3d np.array/awkward-array as main data containers
 
 Contributors: @fkiraly, @matteogales, @mloning, @big-o, @prockenschaub
 
 For preliminary discussions, see issue [#15](https://github.com/alan-turing-institute/sktime/issues/15).
 
-For development work, see the [data-container](https://github.com/alan-turing-institute/sktime/tree/data-container) branch.
+For experimental/prototyping work, see the [data-container](https://github.com/alan-turing-institute/sktime/tree/data-container) branch.
 
 ## Contents
-* [Problem statement](#Problem-statement)
-    * [Representing time series](#Representing-time-series)
-    * [Data container requirements](#Data-container-requirements)
-* [Proposals: extending pandas](#Proposals:-extending-pandas)
-    * [Nested dataframe](#Nested-dataframe)
-    * [Extension array](#Extension-arrays)
-* [List of Python data containers](#Alternative-data-containers)
+[TOC]
 
-# Problem statement
-## Representing time series
-Time series data can arise in different settings, and time series data comes in different forms and shapes. For machine learning with time series, it is important to understand the different forms such data may take. The data can come in the form of a single (or univariate) time series; but in many applications, multiple time series are observed. It is crucial to distinguish the two fundamentally different ways in which this may happen:
-* Multivariate time series data, where two or more variables are observed over time, with variables representing different kinds of measurements within a single experimental unit;
-* Panel data, sometimes also called longitudinal data, where multiple independent instances of the same kinds of measurements. While it is implausible to assume the different univariate component time series to be i.i.d. In multivariate data, in panel data, the i.i.d. assumption with respect to the different instances is plausible. However, time series observations within a given instance are still likely to depend on previous observations. In addition, panel data may be multivariate, which corresponds to i.i.d. instances of multivariate time series. In this case, the different instances are i.i.d., but the univariate component series within an instance are not.
+## Summary
 
-This richness of generative scenarios is mirrored in a richness of data representations, and there seems to be no consensus or established standard for representing time series. For example, panel data can be represented as follows:
+### Problem statement
+Our current data container for the series-as-features setting is a nested pd.DataFrame. The series-as-features setting includes time series classification, regression and eventually clustering and requires panel data. While very flexible, the nested pd.DataFrame is slow and continues to cause a lot of bugs and confusion on the side of users and contributors. 
 
-* in the long format, with rows representing time points and columns representing the unique identifier of independent instances and variables;
-* in the wide format, with rows representing instances and columns representing time points.
+### Proposal
+In this enhancement proposal, I propose the following:
+1. Add support for 3d numpy arrays with shape = (n_instances, n_variables, n_timepoints) for rectangular/time-homogeneous data,
+2. Make 3d numpy arrays the default data container, using the nested pd.DataFrame to handle few cases of time-heterogeneous data,
+3. Replace nested pd.DataFrame with awkward-array for time-heterogeneous data; deprecate and remove the nested pd.DataFrame. 
 
-For an overview of common representations, see our [paper](https://arxiv.org/pdf/1909.07872.pdf) or this [document](https://github.com/MaxBenChrist/awesome_time_series_in_python/blob/master/standardize_time_series_formats.md) by one of the tsfresh developers. 
+## Background
+### Generative time series setting
+Time series data can arise in different settings and comes in many different forms and shapes. For machine learning with time series, it is important to understand the different forms such data may take. The data can come in the form of a single (or univariate) time series; but in many applications, multiple time series are observed. It is crucial to distinguish the two fundamentally different ways in which this may happen:
+* Multivariate time series data, where two or more variables are observed repeatedly over time, with variables representing different kinds of measurements, for a single instance (or experimental unit);
+* Panel data, sometimes also called longitudinal data, where multiple independent instances of the same variables are observed repeatedly over tiem. 
 
-Data containers (in-memory representation) are fundamental in any toolbox: they determine how data can be accessed and manipulated. There are various data containers in Python, with Pandas and NumPy being the most common ones. However, most of them have important shortcomings for the purpose of modelling and evaluating machine learning workflows with time series.
+In the multivariate case, it is implausible to assume the different univariate component time series to be i.i.d. By contrast, in the panel data case, the i.i.d. assumption with respect to the different instances is plausible. However, time series observations within a given instance are still likely to depend on previous observations. 
 
-Note that most available data containers have important limitations for the machine learning with time series. For example, 
-* in the long format, rows no longer represent i.i.d. instances, so that any operation over i.i.d. instances, like for example random sampling as in cross-validation, has to be blocked by instances. 
-* in the wide format, only univariate data can be represented (unless column names also encode variable names in addition to time points which introduces more complications).
+In addition, panel data may be multivariate, which corresponds to i.i.d. instances of multivariate time series. In this case, the different instances are i.i.d., but the univariate component series within an instance are not.
 
-## Data container requirements 
-For the purpose of specifying and applying machine learning workflows to time series data, key requirements for data containers are to handle:
+For more details, see our [paper](https://arxiv.org/pdf/1909.07872.pdf).
 
-* univariate time series 
-* multivariate time series
-* panel data (multiple i.i.d. instances of time series), 
-* date/time indexing (time series vs sequences),
-* time-heterogeneous indices where time points vary across instances and/or variables (e.g. unequal length series, unequally spaced time points).
-* type-heterogeneous data (e.g. time series data combined with scalar data, float, integer and string values)
-* meta-data for variable names (having a data container with meta-data allows to update the meta-data when applying data transformations, e.g. in pipelines).
+### Representing time series data
+This richness of generative scenarios is mirrored in a richness of data representations. 
 
-Ideally, the data container should also align with common mathematical notation and be intuitive to use (e.g. following standard mathematical notation with X being feature matrix with rows representing i.i.d. instances and columns representing variables and y being the target vector to predict).
+Common representations include the following: 
+
+| Representation | Description | 
+|---|---|---|
+| Long | 2d table, rows represent time points, additional columns for instance, variable, value (e.g. a table in a relational database) |
+| Wide | 2d table, rows represent instances, columns respresent time points |
+| Nested | json-like dictionary for nesting instances, variables and time points |
+
+Also see this [overview](https://github.com/MaxBenChrist/awesome_time_series_in_python/blob/master/standardize_time_series_formats.md) by one of the tsfresh developers. 
+
+### No consensus data container
+
+There are various data containers in Python, with Pandas and NumPy being the most common ones. However, most of them have important shortcomings for the purpose of modelling and evaluating machine learning workflows with time series. 
+
+There seems to be no consensus or established standard for representing time series. 
+
+This enhancement proposal focuses on in-memory data representations. But the same seems to apply to on-disk representations and file formats. 
+
+### Importance of data containers
+Data containers (in-memory representation) are fundamental in any toolbox: they determine how data can be stored, accessed and manipulated. 
+
+## Requirements 
+For the purpose of specifying and applying machine learning workflows to panel data, key requirements for data containers are as follows:
+
+### Representation
+* **Univariate time series**
+* **Multivariate time series**
+* **Panel data** (multiple i.i.d. instances of time series), 
+* **Date/time indexing** (time series vs sequences)
+* **Time-heterogeneous indices** where time points vary across instances and/or variables (e.g. unequal length series, unequally spaced time points, variables with different sampling frequencies)
+* **Type-heterogeneous data** (e.g. time series data combined with scalar data, float, integer and string values)
+* **Meta-data** for variable names (having a data container with meta-data allows to update the meta-data when applying data transformations, e.g. in pipelines),
+
+### Efficiency
+* **Computational efficiency** to be practically useful
+
+### Usability
+* **Intuitive API** for indexing, slicing, and data manipulations
+* **Date/time index operations** up-sampling/down-sampling with aggregation/interpolation, sliding windows, sorting, conditional subsetting using date/times, slicing, extraction of calendar information (weekdays, holidays, etc)
+* **Ecosystem compatibility** for re-using much of scikit-learn's functionality
+* **Notational alignment** Ideally, the data container should also align with common mathematical notation and be intuitive to use (e.g. following standard mathematical notation with X being feature matrix with rows representing i.i.d. instances and columns representing variables and y being the target vector to predict).
 
 To our knowledge, there is no library that is flexible enough to meet all of the requirements. 
 
-For a list of data containers we considered, please see our [wiki entry on related software](https://github.com/alan-turing-institute/sktime/wiki/Related-software#time-series-data-containers).
+## Current data container
+While pandas data containers are designed to store only primitive data types in their cells, technically cells can store arbitrary types. This gives us a very flexible representation of time series data. It enables us to represent time heterogenous series, i.e. series which do not share a common time index across instances and/or variables. At the same time, we can still make use of most of pandas' functionality and familiar interface. 
 
-# Proposal: multiple containers
-* using input/output checks to support multiple containers
+This is inspired by [xpandas](https://github.com/alan-turing-institute/xpandas). 
 
-# Proposal: native Python object-oriented solution
+However, there are a number of disadvantages:
+* unintuitive to most users who are familiar with the intended usage of pandas,
+* not very efficient,
+* cannot slice/operate on temporal dimension
+
+## Potential solutions
+For a more complete list of data containers we considered, please see our [wiki entry on related software](https://github.com/alan-turing-institute/sktime/wiki/Related-software#time-series-data-containers).
+
+#### Native Python object-oriented solution
 * similar to Java-based solution in TSML
+* maintenance burden
+* naive implementations are too slow
 
-# Proposal: Using pandas DataFrame with column multi-index 
+#### Pandas DataFrame with column multi-index 
+* only 2d, so wide format requires column multi-index to handle multivariate panel data
 * gives limited ability to slice temporal dimension, but essentially still nested
 * assumes shared time index across instances, but not across columns
 
-# Proposal: using 3d NumPy arrays
-For the series-as-features setting, we could use 3d NumPy arrays. 
+#### 3d NumPy arrays
+For the series-as-features setting, we could use 3d NumPy arrays with shape = `[n_instances, n_variables, n_timepoints]`.
 
-## Advantages
+##### Advantages
 * Familiarity: Used throughout the scientific computing community in Python, familiar to most, and most intuitive direct extension of tabular scikit-learn setting, 
 * Efficiency: highly optimised in terms of CPU and memory usage (vectorisation, threading, etc.) mostly due to restricted computation domain (machine typed arrays rather than arbitrary objects),
 * Reliability: well maintained, thoroughly unit and field tested,
@@ -72,29 +113,28 @@ For the series-as-features setting, we could use 3d NumPy arrays.
 * Maintenance: no extra maintenance burden on our side,
 * Compatibility: used by scikit-learn and tslearn, ensure easy compatibility with PyData ecosystem and perhaps later convergence of different time series related toolboxes,
 
-## Disadvantages
+##### Disadvantages
 * only equal-length data (across instances and columns/variables)
 * does not handle time indexes/timestamps
 
-## Comments
-* currently, many bugs, a lot of debugging, and a lot of things that are unclear to users are due to the data container
+##### Comments
 * all of our functionality assumes equal-length series at the moment, so the disadvantage isn't really a disadvantage, at least for now ...
 * none of our series-as-features functionality makes use of time indices at the moment, generally time indices don't seem very relevant in the prediction algorithms, only in preprocessing, but I believe we have been and should continue to focus on algorithms, model composition and model evaluation
 * perhaps it's better to adopt Numpy arrays, and only rely on additional data container for unequal length cases
 * for open-source toolboxes, it's important to focus on easy problems to solve, implementing or extending a data container seems a lot harder than building a scikit-learn-like toolbox for ML with time series
 * potential compromise: allow multiple data containers, using common input validation function for conversion, use 3d NumPy array as standard data container where possible, use extended Pandas data frame (or other ragged array) for unequal-length cases
 
-# Proposal: Using xarray
+#### xarray
 * depends on xarray developing support for ragged arrays
 * potential collaboration between awkward array and xarray 
 
-# Proposal: Awkward Array
+#### Awkward Array
 * ragged arrays
-* no support for time indexing
-* how could we support date/time indexing in awkward array (down/upsampling, sliding windows, aggregation, sorting, conditional subsetting using date/times, slicing)?
+* support for keeping track of time index, however no support for uo
+* how could we support date/time indexing in awkward array ?
 * what does pandas add when we use awkward array inside an ExtensionArray in a pandas DataFrame?
 
-# Proposal: extending Pandas
+#### Extending Pandas
 Initially, we decided to use [pandas](https://pandas.pydata.org), because it 
 * one of the most developed data containers in Python,
 * familiar to most,
@@ -102,31 +142,19 @@ Initially, we decided to use [pandas](https://pandas.pydata.org), because it
 * keeps track of meta-data, and
 * handles type-heterogenous data.
 
-However, in its intended usage, pandas can store only primitive (or scalar) values. Consequently, panel data with multiple i.i.d. instances are usually represented in either the wide or the long format, both having important drawbacks as discussed above. Hence, we decided to extend pandas. 
-
-There are a number of additional reasons to extend pandas:
+However, in its intended usage, pandas can store only primitive (or scalar) values. Consequently, panel data with multiple i.i.d. instances are usually represented in either the wide or the long format, both having important drawbacks as discussed above. There are a number of additional reasons to extend pandas:
 * Typing columns with new types for time series,
 * Typing of columns based on scitypes to provide counterpart to task objects and estimator compatibility checks (for more details, see e.g. [MLJ's scitype module](https://github.com/alan-turing-institute/ScientificTypes.jl)),
 * Single input checks which create flags in the data container, rather than running the checks every time the data is passed to an estimator (e.g. checking data against column types, presence of missing values, unequal length series, shared time index, univariate or multivariate, presence of additional time-constant variables),
 * Separation of additional meta-data, e.g. flags from input checks and scitypes,
-* More efficient slicing/selecting in time index/dimension,
+* More efficient slicing/selecting in time index/dimension.
 
-
-## Nested dataframe
-While pandas data containers are designed to store only primitive data types in their cells, technically cells can store arbitrary types. This gives us a very flexible representation of time series data. It enables us to represent time heterogenous series, i.e. series which do not share a common time index across instances and/or variables. At the same time, we can still make use of most of pandas' functionality and familiar interface. 
-
-This is inspired by [xpandas](https://github.com/alan-turing-institute/xpandas). 
-
-However, there are a number of disadvantages:
-* unintuitive to most users who are familiar with the intended usage of pandas,
-* not very performant.
-
-## ExtensionArrays
+##### ExtensionArrays
 pandas comes with its own extension class for dataframe columns, called [ExtensionArrays](https://pandas.pydata.org/pandas-docs/stable/development/extending.html). ExtensionArrays allow to store data in arbitraries ways, subject to only some requirements so that it still is compatible with the dataframe structure. 
 
 The idea is to represent time series as a new column type, which internally stores time series as 2d numpy arrays for equal length series. For unequal length series, we will consider [awkward-array](https://github.com/scikit-hep/awkward-array). 
 
-### Implementation
+##### Implementation
 
 The preliminary ExtensionArray solution primarily consists of three classes:
 
@@ -140,9 +168,7 @@ The naming so far was more or less chosen by simply putting Time in front of the
 
 It might make sense to make this distinction clearer in the naming. 
 
-### Open questions
-
-#### Types of data/index combinations to consider
+##### Types of data/index combinations to consider
 1. *All stored series are equal length*
     1. Sequence: No explicit index is needed, data of the form NxT is simply indexed by its position in each row, i.e. the implicit index ranges from 0, …, T-1
     2. Series with equal index: Each data point has an explicit index (e.g. integer - discrete time, floating point number - continuous time, date time object – continuous time); the index is shared across different series (i.e. rows) and can be represented by a single vector with T elements
@@ -156,14 +182,14 @@ Data in each of these cases can be represented within the ExtensionArray as nump
 
 Data and index can not be represented by numpy arrays, and a different solution such as awkwardarray must be used to represent the information within the ExtensionArray.
 
-#### Time indices
+##### Time indices
 Time index are represented by numpy arrays (or awkwardarrays in the case of unequal lengths) and can therefore in theory take any data type that can be stored in a numpy array. However, the current implementation of many internal functions assumes for simplicity that the index is integer or float. Making this assumptin is mostly relevant for missing data operations, where checking for missing data differs for different data types. In order to truly allow for other index types, all functions must be generalized to indices of other types.
 
-#### Representing a single element
+##### Representing a single element
 ExtensionArrays require a base object that represents an atomic element in the ExtensionArray. In our case, this would be a single row represented by a one-dimensional data vector plus a one-dimensional index vector. This corresponds to a single pandas Series in the current nested implemented in the master branch. Unfortunately, pandas Series can not be used as a base object in ExtensionArray because the interface does not allow base objects to have a `shape` property. 
 A TimeBase class was therefore introduced to represent this base object. TimeBase is in its essence a thin wrapper around two pandas arrays (data and index). It primarily acts as a data storage but also implements a small number of functions dealing with comparison, print formatting, and converting to pandas Series and numpy arrays.
 
-#### Missing data
+##### Missing data
 Consistent and intuitive representation of missing data represents one of the larger challenges in creating a time series ExtensionArray. As opposed to one-dimensional data, it is not immediately clear with time series objects what should and should not count as “being missing”. Pandas requires the following definitions:
 
 1. An atomic representation of a single row being missing. Must be able to be compared via python’s `is` operator. 
@@ -180,28 +206,21 @@ A main problem that arises with this definition is how to deal with ExtensionArr
 
 The current way in which we deal with this case is by throwing away the dimensions in (a) when selecting only missing rows. In this way, both will have the same underlying representation (= ExtensionArray with underlying numpy arrays of dimension Nx0).
 
-#### Definition of (common) pandas functions for time series
+##### Definition of (common) pandas functions for time series
 Basic pandas types (e.g. numbers) allow for a number of convenient functions out of the box. Examples are counts/histograms of values in the series, mathematical and logical functions, sorting, unique values, factorization, shifting, etc. We need to decide which of these functions are relevant/defined for time series and which do not make sense and should raise a NotImplementedError. For examples of methods see the [ExtensionArray unit test suite provided by pandas](https://github.com/pandas-dev/pandas/blob/master/pandas/tests/extension/base/__init__.py).
 
-
-# Alternative data containers
+#### Other alternatives
 
 | Data container | Comments |
 |---|---|
 | [numpy structured arrays](https://docs.scipy.org/doc/numpy/user/basics.rec.html) |  |
-|[awkward-array](https://github.com/scikit-hep/awkward-array)| |
 |[modin.pandas](https://github.com/modin-project/modin) | extends pandas, no additional time series features, but more performant |
 | [datatable](https://www.h2o.ai/blog/speed-up-your-data-analysis-with-pythons-datatable-package/) | |
-| sparse numpy/scipy arrays | |
+| sparse numpy/scipy arrays | with missing values to pad unequal length series |
 | TensorFlow [ragged tensors](https://www.tensorflow.org/guide/ragged_tensor) | |
-| [xarray](http://xarray.pydata.org/en/stable/) | supports only grid-like, equal-length series |
-| 3d numpy array | used in tslearn, with padding for unequal length series |
 | [artic](https://github.com/man-group/arctic) | Arctic is a high performance datastore for numeric data. It supports Pandas, numpy arrays and pickled objects out-of-the-box, with pluggable support for other data types and optional versioning. |
 | [Featuretools](https://github.com/Featuretools/featuretools) | Time series feature extraction, with possible conditionality on other variables with a pandas compatible relational-database-like data container |
-| [xarray](https://github.com/pydata/xarray) | Labelled, multi-dimensional data structures as long as they have a shared time index |
 | [xpandas](https://github.com/alan-turing-institute/xpandas) | Labelled 1D and 2D data container for storing type-heterogeneous tabular data of any type, including time series, and encapsulates feature extraction and transformation modelling in an sklearn-compatible transformer interface, work in progress. |
 | [pysf](https://github.com/alan-turing-institute/pysf) | A scikit-learn compatible library for supervised forecasting with its own data container |
 | [pystore](https://github.com/ranaroussi/pystore) | PyStore is a simple (yet powerful) datastore for Pandas dataframes, and while it can store any Pandas object, it was designed with storing timeseries data in mind. It's built on top of Pandas, Numpy, Dask, and Parquet (via Fastparquet) | 
 | [Dask bag](https://docs.dask.org/en/latest/bag.html) | A generic Dask container of Python objects with basic parallelised operations for selecting and manipulating data |
-
-

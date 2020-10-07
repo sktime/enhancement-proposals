@@ -38,7 +38,7 @@ This richness of generative scenarios is mirrored in a richness of data represen
 Common representations include the following: 
 
 | Representation | Description | 
-|---|---|---|
+|---|---|
 | Long | 2d table, rows represent time points, additional columns for instance, variable, value (e.g. a table in a relational database) |
 | Wide | 2d table, rows represent instances, columns respresent time points |
 | Nested | json-like dictionary for nesting instances, variables and time points |

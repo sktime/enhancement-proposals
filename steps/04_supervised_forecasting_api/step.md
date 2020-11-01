@@ -70,22 +70,96 @@ There is a temporal continuity and association assumed between "past" and "futur
 
 The template class `BaseSupForecaster` inherits from `sklearn` `BaseEstimator`.
 
+It has the following methods:
 
+`fit(X : Panel, fh=None : ForecastingHorizon, cutoffs=None : np.array) -> self`  
+Behaviour: fits the model to training data `X`  
+Args:  
+`X` - `Panel` type, independent instances of training data
+`fh` - forecasting horizon object, optional  
+`cutoffs` - same length as `X`, i-th entry is cut-off time points (past vs future) of the i-th sample in `X`
+
+`fit_forecast(X : Panel, fh=None : ForecastingHorizon) -> self`
+Behaviour: fits the model to past of prediction data `X` - usually requires `fit`  
+Args:  
+`X` - `Panel`, independent instances of prediction data  
+`fh` - forecasting horizon object, optional - should only be passed if not passed in `fit`  
+
+`predict(X=None : Panel, fh=None : ForecastingHorizon, return_pred_int=False, alpha=DEFAULT_ALPHA)-> Panel`  
+Behaviour: makes prediction for prediction series in `X` - requires `fit`, but `fit_forecast` is optional; if requires `fit_forecast` but not run, runs it first  
+Args:  
+`X` - `Panel`, independent instances of prediction data  
+`fh` - forecasting horizon object, required if not passed earlier  
+`return_pred_int` - whether prediction intervals should be returned  
+`alpha` - prediction interval alpha  
+Returns:  
+`Panel` type object with predictions  
+if `return_pred` is `True`, also returns `Panel` objects that correspond to prediction intervals  
+
+Should we also have  
+`update`  
+`update_predict`  
+?
+
+Tags:
+
+* `requires_fit` - does the model require a call to `fit` before `predict`?
+* `requres_fit_forecast` - does the model require a call to `fit_forecast`?
+* `requires_cutoff` - does the model need a cutoff to specify in `fit`?
+
+## Implementing complex state behaviour
+
+For usability, users can call `predict` directly after `fit`, although it may be more efficient to call `fit_forecast` first.
+
+This can be accomplished by decorating `fit` with a method `fit_forecast_check` that checks whether `fit_forecast` has been called and needs to be called. If has not been called but needs to, runs `fit_forecast` first with arguments passed.    
+
+## Metrics design
+
+Due to the nature of the task, metrics need to compare samples of series to samples of series, i.e., will be of the signature
+
+`mymetric(y_true: Panel, y_pred: Panel, * , sample_weight=None)`
+
+I would suggest to implement metrics not by hand, but by creating one or few decorator factories, that average `sklearn` metrics over time points.
+
+That is, for example, create a function
+
+`make_idx_avg_panel_metric(sklearn_metric : type(mean_squared_error)) -> type(mymetric)`
+
+which creates the panel metric that is the argument metric averaged first over entries in a series, then over the test samples.
+
+To define metrics, define shorthands and create docstrings for the panel metrics created in this way.
 
 ## First steps
 
+Suggested first steps:
 
+* implement template class, perhaps without `update`
+* implement decorator `fit_forecast_check` for `fit`
+* write template python file with only gaps to fill in
+* implement "simple example" estimators
+* implement simple metrics - averaged MSE and MAE
+
+
+## Simple examples estimators to implement
+
+* reduction to tabular supervised regression: splits `X` in `fit` into two, by cut-off - past becomes `X`, future becomes `y` for an `sklearn` supervised learner
+* reduction to tabular supervised time series regression: splits `X` in `fit` into two, by cut-off - past becomes `X`, future becomes `y`, or a time series regressor
+* "apply forecaster on the test set by row" - does not require `fit`, and applies copies o the wrapped forecaster to each sample in the prediction set
+* some linear mixed effects model from `statsmodels`
 
 ## Notes from 1st meeting
 
 Starting point:
+
 * implement reduction to tabular learning
 
 First models to implement:
+
 * reduction to supervised tabular
 * mixed effects models
 * reduction 2-step: use only constant variables for mean then another estimator for forecast
 
 Other resources
+
 * Master thesis (to be uploaded)
 * previous design notes (will see if I can find any)

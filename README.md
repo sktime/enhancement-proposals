@@ -15,3 +15,7 @@ STEPS are also described in our [governance document](https://www.sktime.org/en/
 To create a new STEP, please copy and use `TEMPLATE.md` and open a pull request on this repository. 
 
 It is highly recommended that a single STEP contains a single key proposal or new idea. The more focused the proposal, the more successful it tends to be. If in doubt, split your STEP into several well-focused ones.
+
+## Acknowledgements
+
+Enhancement proposals are common in the Python ecosystem, we have taken inspiration from [Python Enhancement Proposals (PEP)](https://www.python.org/dev/peps/), [scikit-learn's enhancement proposals](https://github.com/scikit-learn/enhancement_proposals), and [astropy's enhancement proposals (APE)](https://github.com/astropy/astropy-APEs/tree/cb001269b6bcfe0e280daaad3486c8f1198d6e23) among others. 

@@ -146,20 +146,3 @@ Suggested first steps:
 * reduction to tabular supervised time series regression: splits `X` in `fit` into two, by cut-off - past becomes `X`, future becomes `y`, or a time series regressor
 * "apply forecaster on the test set by row" - does not require `fit`, and applies copies o the wrapped forecaster to each sample in the prediction set
 * some linear mixed effects model from `statsmodels`
-
-## Notes from 1st meeting
-
-Starting point:
-
-* implement reduction to tabular learning
-
-First models to implement:
-
-* reduction to supervised tabular
-* mixed effects models
-* reduction 2-step: use only constant variables for mean then another estimator for forecast
-
-Other resources
-
-* Master thesis (to be uploaded)
-* previous design notes (will see if I can find any)

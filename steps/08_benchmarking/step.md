@@ -15,9 +15,11 @@ The current implementation of the benchmarking module in sktime suffers from sev
 For preliminary discussions of the proposal presented here, see issue: [links to issues/pull requests]
 
 ## Contents
-[Problem Statement](#Problem statement)
-[Description](#Description of proposed solution)
-
+[Problem Statement](#Problem-statement)
+[Description of the project](#Description-of-proposed-solution)
+[Motivation](#Motivation)
+[Discussion and comparison of alternative solutions](#Discussion-and-comparison-of-alternative-solutions)
+[Detailed description of design and implementation of proposed solution](#Detailed-description-of-design-and-implementation-of-proposed-solution)
 ## Problem statement
 
 The current design of the orchestrator enforces a certian workflow for supervised classification and regression tasks which does not give full flexibility to users.

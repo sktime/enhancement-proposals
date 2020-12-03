@@ -10,14 +10,12 @@ The current implementation of the benchmarking module in sktime suffers from sev
 * It does not support custom benchmarking workflows, users are forced into a set of default choices;
 * It does not support different paralelization options.
 
-For preliminary discussions of the proposal presented here, see [issue](https://github.com/alan-turing-institute/sktime/issues/141)
+For preliminary discussions of the proposal presented here, [see this.](https://github.com/alan-turing-institute/sktime/issues/141)
 
 ## Contents
 [Problem Statement](#Problem-statement)
 
 [Description of the project](#Description-of-proposed-solution)
-
-[Motivation](#Motivation)
 
 [Discussion and comparison of alternative solutions](#Discussion-and-comparison-of-alternative-solutions)
 
@@ -49,11 +47,9 @@ Our proposal is to abstract the fit and predict logic logic of the orchestrator 
 
 * Question: Is this sufficient for most use cases or should we think about redesigning the iterator as well?
 
-## Motivation
-
 ## Discussion and comparison of alternative solutions
 
-An alternative solution would be to not abstract the logic for fitting and predicting but hard code it in the orchestrator.
+An alternative solution would be to hard code the logic for fittig and predicting in the orchestrator.
 
 As an immediate fix to the forecasting problem we could have a forecasting horison `fh` parameter passed to the `fit_predict` method of the orchestrator that will be used for making the predictions. In a similar way, we can have built-in parallelization functionality in the orchestrator. 
 
@@ -119,3 +115,30 @@ class Orchestrator:
 ```
 
 The difference is that the fit/predict logic will be specified by the user. This should solve the problem of incompatibility of the orchestrator with forecasting tasks as users will be able to specify the forecating horizon `fh` in the predict_logic object.
+
+The `fit_logic` function can look something like:
+
+"""Python
+def fit_logic():
+    # this is a pseudocode example for a bagging algorithm pararelized manually over 4 CPU cores
+    model1 = self.strategy.fit(self.x_train, num_treads=1)
+    model2 = self.strategy.fit(self.x_train, num_treads=1)
+    model3 = self.strategy.fit(self.x_train, num_treads=1)
+    model4 = self.strategy.fit(self.x_train, num_treads=1)
+
+    prediction1 = model1.predict(x_test)
+    prediction2 = model2.predict(x_test) 
+    prediction3 = model3.predict(x_test) 
+    prediction4 = model4.predict(x_test) 
+
+    return (prediction1+prediction2+prediction3+prediction4) / 4
+"""
+
+The above example is only for illustrative purposes, there are libraries that can pararelize trainng over the available CPU cores more efficiently. However, this shows how the fitting logic can be made more flexible. With this design users can create custom fitting pipelines, be able to pararelize the training over cpomputing clusters, use third party liblaries, etc.
+
+Below is an example of a `predict_logic` method that should be compatible with sktime's forceasting framework:
+
+"""Python
+def predict_logic(fh):
+    return self.strategy.predict(fh)
+"""

@@ -10,9 +10,7 @@ The current implementation of the benchmarking module in sktime suffers from sev
 * It does not support custom benchmarking workflows, users are forced into a set of default choices;
 * It does not support different paralelization options.
 
-[concise introduction to problem and overview of proposed solution]
-
-For preliminary discussions of the proposal presented here, see issue: [links to issues/pull requests]
+For preliminary discussions of the proposal presented here, see [issue](https://github.com/alan-turing-institute/sktime/issues/141)
 
 ## Contents
 [Problem Statement](#Problem-statement)

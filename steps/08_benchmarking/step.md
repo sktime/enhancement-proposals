@@ -121,17 +121,12 @@ The `fit_logic` function can look something like:
 ```Python
 def fit_logic():
     # this is a pseudocode example for a bagging algorithm pararelized manually over 4 CPU cores
-    model1 = self.strategy.fit(self.x_train, num_treads=1)
-    model2 = self.strategy.fit(self.x_train, num_treads=1)
-    model3 = self.strategy.fit(self.x_train, num_treads=1)
-    model4 = self.strategy.fit(self.x_train, num_treads=1)
+    self.model1 = self.strategy.fit(self.x_train, num_treads=1)
+    self.model2 = self.strategy.fit(self.x_train, num_treads=1)
+    self.model3 = self.strategy.fit(self.x_train, num_treads=1)
+    self.model4 = self.strategy.fit(self.x_train, num_treads=1)
 
-    prediction1 = model1.predict(x_test)
-    prediction2 = model2.predict(x_test) 
-    prediction3 = model3.predict(x_test) 
-    prediction4 = model4.predict(x_test) 
-
-    return (prediction1+prediction2+prediction3+prediction4) / 4
+    
 ```
 
 The above example is only for illustrative purposes, there are libraries that can pararelize trainng over the available CPU cores more efficiently. However, this shows how the fitting logic can be made more flexible. With this design users can create custom fitting pipelines, be able to pararelize the training over cpomputing clusters, use third party liblaries, etc.
@@ -140,5 +135,10 @@ Below is an example of a `predict_logic` method that should be compatible with s
 
 ```Python
 def predict_logic(fh):
-    return self.strategy.predict(fh)
+    prediction1 = self.model1.predict(x_test)
+    prediction2 = self.model2.predict(x_test) 
+    prediction3 = self.model3.predict(x_test) 
+    prediction4 = self.model4.predict(x_test) 
+
+    return (prediction1+prediction2+prediction3+prediction4) / 4
 ```

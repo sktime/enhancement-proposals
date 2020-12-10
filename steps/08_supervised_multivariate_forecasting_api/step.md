@@ -1,18 +1,24 @@
 # Multivariate forecasting
 
-Contributors: @davidbp
+Contributors: @davidbp, @mloning
 
-This proposal describes a design for an updated supervised forecasting module, or an additional module `multivariate`.  It specifies a template class signature for multivariate forecasters.
+This proposal describes a design for a multivariate (or vector) forecasting module. It specifies a template class signature for multivariate forecasters.
+
+## Background
 
 ### Multivariate time series
 
 A Multivariate time series can be represented as a matrix from $\mathbb{R}^{P\times T}$ where $T$ is the "length" of the timeseries and $P$ is the number of features at each time step. In this type of time series we asume that  each variable depends not only on its past values but also has some dependency on other variables. This dependency is used for forecasting future values. 
 
-### Multivariate (or vector) Forecasting
+### Multivariate forecasting
 
-Multivariate Forecasting describes the learning task in which we want to make temporal forward predictions of a given multivariate time series.
+Multivariate Forecasting describes the learning task in which we want to make temporal forward predictions of a given multivariate time series. Whereas in classical (or univariate) forecasting we predict only a single series, in multivariate forecasting we predict multiple series. This task is sometimes also called vector forecasting. 
 
-### Example of vector forecasting: Vector Auto Regression 
+Note that there are two closely related but distinct learning tasks: 
+* panel forecasting (like multivariate forecasting but with i.i.d. assumption on series)
+* supervised forecasting (PR [#1](https://github.com/sktime/enhancement-proposals/pull/1)) (observed future for some series)
+
+### Example: Vector Auto Regression 
 
 Vector auto regression (or VAR) is one of the most straight forward techniques to do multivariate time series forecasting.
 
@@ -28,20 +34,22 @@ $$
 
 ## API design
 
-Sktime currently has the capabilities for forecasting in univariate timeseries. The multivariate (or vector) forecasting design should be concordant with the previous API for univariate time series. In particular:
+sktime currently has the capabilities for forecasting in univariate time series. The multivariate (or vector) forecasting design should be concordant with the previous API for univariate time series. In particular:
 
 - "apply forecaster by row" should be close to the forecasting interface
 - "forecast one time point" should be  close to the supervised time series regression interface
 
-There are some issues with multivariate data, the univariate API uses pd.Series objects, but those are meant to represent one dimensional ndarray objects (https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html). Therefore there are 2 options
+### Module
+We propose to create a new module `sktime/multivariate_forecasting`. 
 
-- a) Use pandas dataframes where columns indicate features
+### Data container
+There are some issues with multivariate data, the univariate API uses `pd.Series` objects, but those are meant to represent one dimensional ndarray objects (https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html). 
 
-- b) Use pandas series created with tuples
+We propose to use a `pd.DataFrame` with rows representing time points and columns representing variables for the multivariate target variable. This is how we currently represent multivariate series (e.g. in the `SeriesToSeriesTransformer`). 
 
+Adding another representation will further complicate interoperability of our existing functionality and increase complexity for users.
 
-
-#### a) pandas dataframes where columns indicate features
+**Example:**
 
 A sensible way to store multiple features is to use a dataframe, as the following example suggests
 
@@ -70,18 +78,30 @@ Period
 1957-12  336.0  1.0
 ```
 
-This type of data container though is not accepted by sktime
+### Estimator interface
+The interface should be the same as the interface for univariate forecaster with the only difference that the target variable in `fit` and `update` now is a `pd.DataFrame` (or multivariate series) rather than `pd.Series` (univariate series).
 
-```
-forecaster = vector.NaiveVectorForecaster(strategy="last", sp=12)
-forecaster.fit(df_multivariate_values)
-```
+To re-use univariate forecasters, we can provide a reduction estimator that applies separate univariate forecasters to each series of the multivariate target series. This is a simple solution strategy to the multivariate forecasting problem. Note that it ignores any dependency between variables and forecasts them separately. 
 
-```
-AttributeError: 'NaiveVectorForecaster' object has no attribute '_set_y_X'
-```
+We may also be able to refactor other code, however having two types (`Series` and `DataFrames`) may complicate a few things.  
 
-#### b) pd.Series with tuples
+## Design principles
+
+We wish to adhere to multiple principles:
+
+- consistency with existing template interfaces in sktime, maybe it would be resonable to respresent multivariate data with a dataframe and methods that are passed a dataframe should understand that they deal with multivariate data.
+- avoiding user frustration - natural user expectations on interface behaviour should be met (here separating multivariate and univariate data should be very easy to understand)
+
+
+## Alternative designs
+
+### Generalize univariate forecasting API
+
+Instead of creating a new API, we can generalize the existing API for univariate forecasting. We can re-use the univariate forecasters currently implemented in `sktime/forecasting` and dispatch on the input type if necessary (`pd.Series` for univariate and `pd.DataFrame` for multivariate).
+
+Given then tight coupling of estimator code with the expected data type of the target series (`pd.Series`), this alternative will involve a lot of refactoring. Having a reduction compositor may be the easier option.
+
+### Data container: pd.Series with tuples
 
 The following example shows one possible solution to represent multivariate data
 
@@ -123,15 +143,3 @@ Outputs:
 ```
 TypeError: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
 ```
-
-
-
-## Design principles
-
-We wish to adhere to multiple principles:
-
-- consistency with existing template interfaces in sktime, maybe it would be resonable to respresent multivariate data with a dataframe and methods that are passed a dataframe should understand that they deal with multivariate data.
-- avoiding user frustration - natural user expectations on interface behaviour should be met (here separating multivariate and univariate data should be very easy to understand)
-
-
-

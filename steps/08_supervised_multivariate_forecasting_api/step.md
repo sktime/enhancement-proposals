@@ -85,6 +85,54 @@ To re-use univariate forecasters, we can provide a reduction estimator that appl
 
 We may also be able to refactor other code, however having two types (`Series` and `DataFrames`) may complicate a few things.  
 
+### Example: reduction from multivariate to univariate forecasting
+
+```python
+def _check_forecaster(forecaster):
+    # check forecaster is univariate forecaster
+    pass
+
+class Reducer:
+    """multivariate forecasting -> univariate forecasting"""
+    
+    def __init__(self, forecaster):
+        _check_forecaster(forecaster)
+        self.forecaster = forecaster
+        
+    def fit(self, Y, X=None, fh=None):
+        self.n_variables = Y.shape[1]
+        
+        self.forecasters_ = []
+        
+        for i, y in enumerate(Y):
+            
+            f = clone(self.forecaster)
+            f.fit(y)
+            forecasters_.append(f)
+            
+        return self
+            
+    def predict(self, fh=None, X=None):
+        y = np.empty((len(fh), n_variables))
+        
+        for i, f in enumerate(self.forecasters_):
+            y[:, i] = f.predict(fh)
+            
+        return pd.DataFrame(y, index=fh.to_absolute().to_pandas()) 
+    
+    def update(self, Y, X=None):
+        # online learning
+        for f in enumerate(self.forecasters_):
+            f.update(y, X=None)
+            
+        return self
+
+uf = NaiveForecaster()
+mf = Reducer(uf)
+mf.fit(y)
+Y_pred = mf.predict(fh)
+```
+
 ## Design principles
 
 We wish to adhere to multiple principles:

@@ -47,14 +47,6 @@ Our proposal is to abstract the fit and predict logic logic of the orchestrator 
 
 * Question: Is this sufficient for most use cases or should we think about redesigning the iterator as well?
 
-## Discussion and comparison of alternative solutions
-
-An alternative solution would be to hard code the logic for fittig and predicting in the orchestrator.
-
-As an immediate fix to the forecasting problem we could have a forecasting horison `fh` parameter passed to the `fit_predict` method of the orchestrator that will be used for making the predictions. In a similar way, we can have built-in parallelization functionality in the orchestrator. 
-
-This approach will be easier to implement in the short term but might make the code base unwieldy if more and more functions are being added over time.
-
 ## Detailed description of design and implementation of proposed solution 
 
 The current implementation of the orchestrator in pseudocode can be found below:
@@ -142,3 +134,130 @@ def predict_logic(fh):
 
     return (prediction1+prediction2+prediction3+prediction4) / 4
 ```
+
+## User journey
+
+The below code snippet shows the current implementation and the proposed change.
+```Python
+# Create individual pointers to dataset on the disk
+datasets = [
+    UEADataset(path=DATA_PATH, name="ArrowHead"),
+    UEADataset(path=DATA_PATH, name="ItalyPowerDemand"),
+]
+#specify learning task
+tasks = [TSCTask(target="target") for _ in range(len(datasets))]
+#specify learning strategies
+strategies = [
+    TSCStrategy(TimeSeriesForest(n_estimators=10), name="tsf"),
+    TSCStrategy(RandomIntervalSpectralForest(n_estimators=10), name="rise"),
+]
+
+# Specify results object which manages the output of the benchmarking
+results = HDDResults(path=RESULTS_PATH)
+
+
+# -------------------proposed change----------------
+def fit_logic():
+    pass
+def predict_logic():
+    pass
+# -------------------proposed change----------------
+# run orchestrator
+orchestrator = Orchestrator(
+    datasets=datasets,
+    tasks=tasks,
+    strategies=strategies,
+    cv=PresplitFilesCV(),
+    results=results,
+    fit_logic=fit_logic, #-------proposed change
+    predict_logic=predict_logic #------ proposed change
+)
+orchestrator.fit_predict(save_fitted_strategies=False, overwrite_predictions=True)
+
+#evaluate results
+evaluator = Evaluator(results)
+metric = PairwiseMetric(func=accuracy_score, name="accuracy")
+metrics_by_strategy = evaluator.evaluate(metric=metric)
+metrics_by_strategy.head()
+```
+
+## Discussion and comparison of alternative solutions
+1. Option 1 - Expand the task object
+   
+   The current design allows to easly add new task objects. If we want to solve the forecasting problem only we can simply use the current design to write a new forecasting task, for example:
+
+   ```Python
+
+   class TSFTask(BaseTask):
+    """
+    Time series regression task.
+
+    A task encapsulates metadata information such as the feature and target
+    variable
+    to which to fit the data to and any additional necessary instructions on
+    how
+    to fit and predict.
+
+    Parameters
+    ----------
+    target : str
+        The column name for the target variable to be predicted.
+    fh: int
+        forecasting horison 
+    features : list of str, optional (default=None)
+        The column name(s) for the feature variable. If None, every column
+        apart from target will be used as a feature.
+    
+    metadata : pandas.DataFrame, optional (default=None)
+        Contains the metadata that the task is expected to work with.
+    """
+
+    def __init__(self, target, fh, features=None, metadata=None):
+        self._case = 'TSR'
+        self._fh = fh
+        super(TSRTask, self).__init__(target, features=features,
+                                      metadata=metadata)
+
+    ```
+    If this approach is assumed, we only need to change one line in the orchestrator where the predictions are made.
+
+
+    ```Python
+    def fit_predict():
+        #current implementation
+        ......
+
+        y_pred = strategy.predict(test)
+        .......
+        #needs to change to
+        y_pred = strategy.predict(task, test)
+    ```
+
+
+
+1. Option 2 - hard code logic in orchestrator
+    
+    An alternative solution would be to hard code the logic for fittig and predicting in the orchestrator.
+
+    As an immediate fix to the forecasting problem we could have a forecasting horison `fh` parameter passed to the `fit_predict` method of the orchestrator that will be used for making the predictions. In a similar way, we can have built-in parallelization functionality in the orchestrator. 
+
+    This approach will be easier to implement in the short term but might make the code base unwieldy if more and more functions are being added over time.
+
+1. Option 3 - radical change of the interface
+   
+   One option would be to adopt a yaml file or similar approach to defining the experiments. Examples of such an approach to setting up experiments include https://machinable.org/guide/, skull
+
+1. Option 4 - Combination of Option 1 an Option 3
+  
+   Implement the "quick fix" by writing a new forecasting task and chaning the prediction line in the orchestrator. 
+
+   Keep current interface but add an option to define the experients through yaml files.
+   
+
+   
+
+   
+
+   
+   
+

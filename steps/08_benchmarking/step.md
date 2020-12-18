@@ -34,8 +34,7 @@ The current design of the orchestrator relies on the following main components:
 1. Procedure for making predictions
 1. Evaluating the trained strategies
 
-Currently the iterator constitutes the main loop of the orchestrator and the procedure for fittigng the strategies and making the predictions is hard coded in the main `fit_predict`. This design choice limits the functionality of the toolbox. For example, currently the UEA benchmarking workflow is not supported. In addition to ths, the benchmarking module does not curently support forecasting as the forecaster takes the number of time steps to be forecasted as an argument to its `predict` method which is unsupported at the moment. In addition to this, different paralization options are not supported either again due to the fact that the process of fitting and predicting are hard coded.
-
+Currently the iterator constitutes the main loop of the orchestrator and the procedure for fittigng the strategies and making the predictions is hard coded in the main `fit_predict`. This design choice limits the functionality of the toolbox. For example, currently the UEA benchmarking workflow is not supported. In addition to ths, the benchmarking module does not curently support forecasting as the forecaster takes the number of time steps to be forecasted as an argument to its `predict` method which is unsupported at the moment. In addition to this, different paralization options are not supported either. 
 
 ## Description of proposed solution
 
@@ -182,7 +181,7 @@ metrics_by_strategy.head()
 ```
 
 ## Discussion and comparison of alternative solutions
-1. Option 1 - Expand the task object
+1. Option 1 - Expand the task and strategy objects
    
    The current design allows to easly add new task objects. If we want to solve the forecasting problem only we can simply use the current design to write a new forecasting task, for example:
 
@@ -233,7 +232,32 @@ metrics_by_strategy.head()
         y_pred = strategy.predict(task, test)
     ```
 
+   The current design of the benchmarking module allows facilitates implementing custom `fit` and `predict` methods by expanding the strategy objects. 
 
+   ```Python
+   class TSFStrategy(BaseSupervisedLearningStrategy):
+    """
+    Strategy for time series classification.
+
+    Parameters
+    ----------
+    estimator : an estimator
+        Low-level estimator used in strategy.
+    name : str, optional (default=None)
+        Name of strategy. If None, class name of estimator is used.
+    """
+
+    def __init__(self, estimator, name=None):
+        self._case = "TSC"
+        self._traits = {"required_estimator_type": CLASSIFIER_TYPES}
+        super(TSCStrategy, self).__init__(estimator, name=name)
+    
+    def fit(task,train):
+        #custom logic goes here
+    
+    def predict(task, test):
+        #custom logic goes here
+    ```
 
 1. Option 2 - hard code logic in orchestrator
     
@@ -243,15 +267,33 @@ metrics_by_strategy.head()
 
     This approach will be easier to implement in the short term but might make the code base unwieldy if more and more functions are being added over time.
 
-1. Option 3 - radical change of the interface
+1. Option 3 - Add option to specify experiments through yaml files.
    
-   One option would be to adopt a yaml file or similar approach to defining the experiments. Examples of such an approach to setting up experiments include https://machinable.org/guide/, skull
+   One option would be to adopt a yaml file or similar approach to defining the experiments. Examples of such an approach to setting up experiments include https://machinable.org/guide/, skll.
 
-1. Option 4 - Combination of Option 1 an Option 3
-  
-   Implement the "quick fix" by writing a new forecasting task and chaning the prediction line in the orchestrator. 
+   From the user point of view setting up a benchmarking experiment can look something like:
 
-   Keep current interface but add an option to define the experients through yaml files.
+   ```yaml
+   benchmarking:
+     datasets: "path_to_datasets"
+     tasks: forecasting
+     strategies: 
+       TimeSeriesForest:
+         n_estimator: 10
+         name: time_series_forest
+       RandomIntervalSpectralForest:
+         n_estimator: 10
+         name: time_series_forest
+     cv: PresplitFilesCV
+     results: "path_to_results" 
+   evaluation:
+     metric: PairwiseMetric
+     evaluation_results: `path_where_to_save`
+   ```
+
+   The yaml file based and Python interfaces for specifying and evaluating experiments can coexist. For simpler experiements where only sktime modules and standard settings are used, users can use the yaml interface.
+
+   For more bespoke experiments, the Python interface can be used.
    
 
    

@@ -130,7 +130,7 @@ It lists:
 The module implements the following features:
 * `puretypeof(mascitype: Type) -> Type` produces the pure scitype for a mascitype `mascitype`.
 * `checkmascitype(obj, mascitype: Type) -> Boolean` checks whether `obj` is of mascitype `mascitype`
-* `infermtype(obj, puretype: Type) -> Type` infers the mascitype combination type of `obj` which is known/assumed to be of pure type `puretype`. E.g., if `obj` is a `pd.DataFrame` in nested format, `infermtype(obj, TSS)` would return `TSS_as_NestedDF`
+* `infermascitype(obj, puretype: Type) -> Type` infers the mascitype combination type of `obj` which is known/assumed to be of pure type `puretype`. E.g., if `obj` is a `pd.DataFrame` in nested format, `infermtype(obj, TSS)` would return `TSS_as_NestedDF`
 * `convert(obj, from_mascitype: Type, to_mascitype: Type) -> to_mascitype` converts `obj` from mascitype `from_mascitype` to mascitype `to_mascitype`. It is assumed that `obj` has mascitype `from_mascitype`.
 
 The above likely have to make use of dispatch mechanisms, on mascitype arguments. E.g., `convert` should dispatch on `from_mascitype` and `to_mascitype`, for example to a function `convert_from_TSS_as_LongDF_to_TSS_as_NestedDF`. The dispatch mechanism is to be determined.
@@ -153,13 +153,22 @@ The multi-argument type checks and conversions are implemented as follows.
 
 The scitype class decorator has consant class variables `default_mascitype_[methodname]_[argumentname]` whose values are the default mascitype of argument `[argumentname]` in method `[methodname]`, for all methods and arguments that have mascitypes.
 
-When the class decorator wraps an extension class, it does the following:
+When the class decorator (below "decorating class") wraps an extension class (below "decorated class"), it does the following, for every method at call:
 
-1. for every method 
+1. inspects and extracts mascitype type hints from inputs and outputs from the decorated class method; if no such type hints exist, replaces them by the default mascitype of the decorating class
+2. for each mascitypable input argument passed, uses `infermascitype` to infer the mascitype. Stores these in temporary variables `input_mascitpye_[methodname]_[argumentname]`.
+3. performs any multi-argument checks on the unconverted inputs. This may mean looking up specific checking methods, or raising an error if input mascitypes are incompatible with each other. 
+4. for each mascitypable input argument passed, converts arguments using `convert` with inferred input mascitype as `from_mascitype` to the type hint mascitype of the decorating class as `to_mascitype`
+5. passes the converted arguments to the method of the decorated class
+6. executes the method of the decorated class and retrieves its outputs, if there are any
+7. performs any output checks. This may mean looking up specific checking methods, or raising an error if input mascitypes are incompatible with each other. 
+8. if there is an output and it is mascitypable, converts it using `convert` with type hinted output mascitype as `from_mascitype` to a specified `to_mascitype`. This typically will be: a default mascitype; identical to one of the input mascitypes in `input_mascitype_...` (by some scitype specific rule, e.g., `X` in/out mascitypes being identical); explicitly specified by an override argument of the method such as `out_type`.
+
+In addition to the above, the class decorator may contain any scitype specific functionality.
 
 ### Optional in the generic module: type conversion class decorator
 
-This is optional (may simplify things?)
+This is optional - may simplify things, may be abstraction overkill.
 
 The generic type checking module also contains a generic class decorator factory that can be used to create class decorators by inheritance, with the functionality to use type hints to to convert mascitypes of inputs and outputs.
 

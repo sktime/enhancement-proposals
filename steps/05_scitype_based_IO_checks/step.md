@@ -124,8 +124,8 @@ The generic type checking module contains a list of argument scitypes, as consta
 It lists:
 * pure scitypes, e.g., `TSS` for "sample of time series"
 * machine-type/scitype combinations, e.g., `TSS_as_NestedDF` for "sample of time series, encoded as nested `pd.DataFrame`"; for abbreviation we call these "mascitypes"
-* for each mscitype, which scitype it implements; e.g., the information that `TSS_as_NestedDF` is an encoding convention for `TSS`
-* in documentation: encoding convention of machine-type/scitype combinations, and meaning of pure scitypes
+* for each mascitype, which scitype it implements; e.g., the information that `TSS_as_NestedDF` is an encoding convention for `TSS`
+* in documentation: encoding convention that mascitypes indicate (e.g., how a sample of time series is to be encoded as a `pd.DataFrame` when it has mascitype `TSS_as_NestedDF`), and meaning of pure scitypes (e.g., what is the mathematical/statistical definition of a "sample of time series")
 
 The module implements the following features:
 * `puretypeof(mascitype: Type) -> Type` produces the pure scitype for a mascitype `mascitype`.

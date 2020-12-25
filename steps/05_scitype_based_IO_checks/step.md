@@ -10,7 +10,7 @@ In the most recent versions, we also have simultaneous support for data containe
 
 Recent discussions seem to indicate that supporting multiple machine types may be inevitable when supporting advanced learning tasks, e.g., a single time series being representable by all of `np.array`, `pd.Series`, or `pd.DataFrame` with specific encoding conventions; or, a sample of time series being representable by all of `np.array`, nested `pd.DataFrame`, or `pd.DataFrame` in long format.
 
-Version 0.5 has also introduced implicit scityping using the `typing` module, see the pre-amble of `transformers/base.py`. This is accompanied by type and format checking functionality in `utils/validation/series.py`. The interplay between declarative typing and implicit checking seems a bit bolted together and should be straightened out, also see discussion in [PR 420](https://github.com/alan-turing-institute/sktime/pull/420#issuecomment-716059124).
+Version 0.4.3 has also introduced implicit scityping using the `typing` module, see the pre-amble of `transformers/base.py`. This is accompanied by type and format checking functionality in `utils/validation/series.py`. The interplay between declarative typing and implicit checking seems a bit bolted together and should be straightened out, also see discussion in [PR 420](https://github.com/alan-turing-institute/sktime/pull/420#issuecomment-716059124).
 
 ## The Aim
 

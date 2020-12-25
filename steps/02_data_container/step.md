@@ -92,6 +92,11 @@ However, there are a number of disadvantages:
 ## Potential solutions
 For a more complete list of data containers we considered, please see our [wiki entry on related software](https://github.com/alan-turing-institute/sktime/wiki/Related-software#time-series-data-containers).
 
+#### Data loader abstraction
+* similar to deep-learning libraries 
+* create a common layer of abstractions for different representations 
+* create a common interface point for different kinds of data (e.g. temporal and cross-sectional data, categoricals)
+
 #### Native Python object-oriented solution
 * similar to Java-based solution in TSML
 * maintenance burden

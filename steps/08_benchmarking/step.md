@@ -163,7 +163,7 @@ We will consider the three individual use cases below:
     cv=PresplitFilesCV(),
     results=results)
 
-    orchestrator.fit_predict(save_fitted_strategies=False, overwrite_predictions=True)
+    orchestrator.fit_predict()
     ```
 
     However, we will need to write a new forecasting task that will take the `fh` as an argument. From a user point of view this will look like this:
@@ -190,4 +190,25 @@ We will consider the three individual use cases below:
         strategy.predict(task._fh) #sktime forecasting strategies take the forecasting horison an argument to predict()
     ```
 
+    **Alternative**
+
+    Instead of changing the `task` object to take the `fh` arguement, we can write a new *forecasting cross validation* strategy class. The cross validation strategy will take the `fh` argument and pass it to the forecasting strategy predict method as a *test dataset*. From the user point of view this will look like:
+
+    ```Python
+    # run orchestrator
+    orchestrator = Orchestrator(
+    datasets=datasets,
+    tasks=tasks,
+    strategies=strategies,
+    cv=ForecasterCV(fh), #proposed change
+    results=results)
+
+    orchestrator.fit_predict()
+    ```
+
+    the `split` method of ForecasterCV will generate X_train, X_test, y_train, y_test arrays where X_test will effectively be `fh`.
+    
+
 1. define forecasting experiment, multiple data sets, single train/test split (no sliding)
+
+    Same as tpoint 2. The forecasting strategy will be defined in the `sktime.forecasting` module. The forecasting corison argument will be treated in the same way as point 2.

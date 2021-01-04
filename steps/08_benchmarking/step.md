@@ -17,9 +17,8 @@ For a preliminary discussion of some initial enhancement ideas for the benchmark
 
 [Description of the project](#Description-of-proposed-solution)
 
-[Discussion and comparison of alternative solutions](#Discussion-and-comparison-of-alternative-solutions)
+[User Journey](#User-Journey)
 
-[Detailed description of design and implementation of proposed solution](#Detailed-description-of-design-and-implementation-of-proposed-solution)
 
 ## Problem statement
 

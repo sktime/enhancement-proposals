@@ -4,113 +4,210 @@
 
 ## Introduction
 
-The current implementation of the benchmarking module in sktime suffers from several limiations.
+The current implementation of the benchmarking module in sktime suffers from several limitations.
 
 * It is not compatible with forecasting tasks;
 * It does not support custom benchmarking workflows, users are forced into a set of default choices;
-* It does not support different paralelization options.
+* It does not support different parallelization options.
 
-[concise introduction to problem and overview of proposed solution]
-
-For preliminary discussions of the proposal presented here, see issue: [links to issues/pull requests]
+For a preliminary discussion of some initial enhancement ideas for the benchmarking module [see this issue on Github.](https://github.com/alan-turing-institute/sktime/issues/141)
 
 ## Contents
-[Problem Statement](#Problem statement)
-[Description](#Description of proposed solution)
+[Problem Statement](#Problem-statement)
+
+[Description of the project](#Description-of-proposed-solution)
+
+[User Journey](#User-Journey)
+
 
 ## Problem statement
 
-The current design of the orchestrator enforces a certian workflow for supervised classification and regression tasks which does not give full flexibility to users.
+The current design of the orchestrator enforces a certain workflow for supervised classification and regression tasks which does not give full flexibility to users.
 
 The current design of the orchestrator relies on the following main components:
 
 1. Backend for saving and loading the data
 1. Wrapper class for strategies
 1. Iterator for going through strategies, datasets and cv folds
-1. Procedure for fitting the startegies 
+1. Procedure for fitting the strategies 
 1. Procedure for making predictions
 1. Evaluating the trained strategies
 
-Currently the iterator constitutes the main loop of the orchestrator and the procedure for fittigng the strategies and making the predictions is hard coded in the main `fit_predict`. This design choice limits the functionality of the toolbox. For example, currently the UEA benchmarking workflow is not supported. In addition to ths, the benchmarking module does not curently support forecasting as the forecaster takes the number of time steps to be forecasted as an argument to its `predict` method which is unsupported at the moment. In addition to this, different paralization options are not supported either again due to the fact that the process of fitting and predicting are hard coded.
-
+Currently the iterator constitutes the main loop of the orchestrator and the procedure for fitting the strategies. A `task` object holds information about the type of problem we are trying to solve, i.e. regression, classification, forecasting, prediction. A `strategy` object serves as a wrapper for the underling estimator and holds the `fit_predict` logic.
 
 ## Description of proposed solution
 
-Our proposal is to abstract the fit and predict logic logic of the orchestrator which will make the workflow more adaptable to varying use cases. The iterator is the other principle component of the orchestrator that remains hard coded. It currently loops through 
+Our proposal is to expand the task and strategy objects and add a simplified interface for setting up experiments and evaluating the results through the use of yaml files.
 
-1. tasks and datasets
-1. strategies
-1. cv folds
 
-* Question: Is this sufficient for most use cases or should we think about redesigning the iterator as well?
-
-## Motivation
-
-## Discussion and comparison of alternative solutions
-
-An alternative solution would be to not abstract the logic for fitting and predicting but hard code it in the orchestrator.
-
-As an immediate fix to the forecasting problem we could have a forecasting horison `fh` parameter passed to the `fit_predict` method of the orchestrator that will be used for making the predictions. In a similar way, we can have built-in parallelization functionality in the orchestrator. 
-
-This approach will be easier to implement in the short term but might make the code base unwieldy if more and more functions are being added over time.
-
-## Detailed description of design and implementation of proposed solution 
-
-The current implementation of the orchestrator in pseudocode can be found below:
+The current design allows to easily add new task objects. If we want to solve the forecasting problem only we can simply use the current design to write a new forecasting task, for example:
 
 ```Python
-class Orchestrator:
-    def __init__(self, tasks, datasets, strategies, cv, results):
-        # the task, datasets and strategies parameters are passed as lists
-        # cv stands for cross validation iterator
-        # results is a custom class for persisting the strategies and their predictions
 
-    def fit_predict(self,
-        overwrite_predictions=False,
-        predict_on_train=False,
-        save_fitted_strategies=True,
-        overwrite_fitted_strategies=False,
-        verbose=False)
+class TSFTask(BaseTask):
+"""
+Time series regression task.
 
-        #_iter is a private iterator method 
-        for task, dataset, data, strategy, cv_fold, train_idx, test_idx in self._iter():
-            train = data.iloc[train_idx]
-            strategy.fit(task, train)
-            results.save_fitted_strategy()
+A task encapsulates metadata information such as the feature and target
+variable
+to which to fit the data to and any additional necessary instructions on
+how
+to fit and predict.
 
-            test = data.iloc[test_idx]
-            strategy.predict(test)
-            results.save_predictions()
-            
+Parameters
+----------
+target : str
+    The column name for the target variable to be predicted.
+fh: int
+    forecasting horison 
+features : list of str, optional (default=None)
+    The column name(s) for the feature variable. If None, every column
+    apart from target will be used as a feature.
+
+metadata : pandas.DataFrame, optional (default=None)
+    Contains the metadata that the task is expected to work with.
+"""
+
+def __init__(self, target, fh, features=None, metadata=None):
+    self._case = 'TSR'
+    self._fh = fh
+    super(TSRTask, self).__init__(target, features=features,
+                                    metadata=metadata)
+
 ```
-The proposed implementation is:
+The current design of the benchmarking module allows facilitates implementing custom `fit` and `predict` methods by expanding the strategy objects. 
+
 
 ```Python
-class Orchestrator:
-    def __init__(self, tasks, datasets, strategies, cv, results, fit_logic, predict_logic):
-        # the task, datasets and strategies parameters are passed as lists
-        # cv stands for cross validation iterator
-        # results is a custom class for persisting the strategies and their predictions
+class TSFStrategy(BaseSupervisedLearningStrategy):
+"""
+Strategy for time series classification.
 
-        # fit_logic and predict logic are the two new classes that we propose to add to the design.
+Parameters
+----------
+estimator : an estimator
+    Low-level estimator used in strategy.
+name : str, optional (default=None)
+    Name of strategy. If None, class name of estimator is used.
+"""
 
-    def fit_predict(self,
-        overwrite_predictions=False,
-        predict_on_train=False,
-        save_fitted_strategies=True,
-        overwrite_fitted_strategies=False,
-        verbose=False)
+def __init__(self, estimator, name=None):
+    self._case = "TSC"
+    self._traits = {"required_estimator_type": CLASSIFIER_TYPES}
+    super(TSCStrategy, self).__init__(estimator, name=name)
 
-        #_iter is a private iterator method 
-        for task, dataset, data, strategy, cv_fold, train_idx, test_idx in self._iter():
-            train = data.iloc[train_idx]
-            strategy.fit(task, train)
-            fit_logic.fit(strategy, task, train)
-            results.save_fitted_strategy()
+def fit(task,train):
+    #custom logic goes here
 
-            predict_logic.predict(strategy, train) 
-            results.save_predictions()
-            
+def predict(test):
+    #custom logic goes here
 ```
 
-The difference is that the fit/predict logic will be specified by the user. This should solve the problem of incompatibility of the orchestrator with forecasting tasks as users will be able to specify the forecating horizon `fh` in the predict_logic object.
+
+   
+In order to simplify the interface, one option would be to adopt a yaml file or similar approach to defining the experiments. Examples of such an approach to setting up experiments include https://machinable.org/guide/, skll.
+
+From the user point of view setting up a benchmarking experiment can look something like:
+
+```yaml
+benchmarking:
+    datasets: "path_to_datasets"
+    tasks: forecasting
+    strategies: 
+    TimeSeriesForest:
+        n_estimator: 10
+        name: time_series_forest
+    RandomIntervalSpectralForest:
+        n_estimator: 10
+        name: time_series_forest
+    cv: PresplitFilesCV
+    results: "path_to_results" 
+evaluation:
+    metric: PairwiseMetric
+    evaluation_results: `path_where_to_save`
+```
+
+The yaml file based and Python interfaces for specifying and evaluating experiments can coexist. For simpler experiments where only sktime modules and standard settings are used, users can use the yaml interface.
+
+For more bespoke experiments, the Python interface can be used.
+
+
+## User Journey
+
+We will consider the three individual use cases below:
+
+1. Define prediction experiment on multiple data sets, with time series classifiers
+
+    This use case is covered in the existing design of the benchmarking module of sktime. Therefore, no changes are required. Please see [this notebook](https://www.sktime.org/en/latest/examples/04_benchmarking.html) for an example of how this can be achieved.
+
+    Things to note:
+    1. Users need to define a `TSCTask` object that holds the name of the column in the dataset that holds the target variable.
+    1. The  `fit` method of the `TSCStrategy` object takes the task and the training data as arguments. 
+    1. The `predict` method of the `TSCStrategy` object takes only the test data as an argument. The `task` object is already saved as a private attribute in the `TSCStrategy` object when the strategy was fitted. Therefore, we can use it to get only the feature columns in the training data.
+    1. This procedure is equivalent to making $n$ single step ahead predictions without using the prior predictions as features for making subsequent predictions.
+
+1. Define forecasting experiment, train/test split with sliding window predict/update/predict/etc, multiple datasets
+    1. We need to define the forecasting horison `fh` which is comprised of the future time points for which we need to produce forecasts.
+    1. The sliding window approach of making predictions and updating the sliding window by adding the previously predicted value is handled by family of `forecaster` strategies through reduction to regression algorithm that are implemented in the `sktime.forecasting.compose` module.
+
+
+    From a user experience point of view the journey will be identical:
+    
+    ```Python
+    # run orchestrator
+    orchestrator = Orchestrator(
+    datasets=datasets,
+    tasks=tasks,
+    strategies=strategies,
+    cv=PresplitFilesCV(),
+    results=results)
+
+    orchestrator.fit_predict()
+    ```
+
+    However, we will need to write a new forecasting task that will take the `fh` as an argument. From a user point of view this will look like this:
+
+    ```Python
+        task = TSFTask(target="target", fh=fh)
+    ```
+
+    In order to make this work, we need to change very slightly the code in the orchestrator module. This will be invisible to end users.
+
+    Currently the orchestrator performs predictions by simply calling:
+
+    ```Python
+    strategy.predict(train)
+    #train are the training samples produced by the cv algorithm
+    ```
+
+    In order to make this work with the orchestrator we need to change the above line in the orchestrator to make a case distinction based on the type of task. For example, this can look like:
+
+    ```Python
+    if task._type == 'prediction':
+        strategy.predict(train) #same as above
+    if task._type == 'forecasting':
+        strategy.predict(task._fh) #sktime forecasting strategies take the forecasting horison an argument to predict()
+    ```
+
+    **Alternative**
+
+    Instead of changing the `task` object to take the `fh` argument, we can write a new *forecasting cross validation* strategy class. The cross validation strategy will take the `fh` argument and pass it to the forecasting strategy predict method as a *test dataset*. From the user point of view this will look like:
+
+    ```Python
+    # run orchestrator
+    orchestrator = Orchestrator(
+    datasets=datasets,
+    tasks=tasks,
+    strategies=strategies,
+    cv=ForecasterCV(fh), #proposed change
+    results=results)
+
+    orchestrator.fit_predict()
+    ```
+
+    the `split` method of ForecasterCV will generate X_train, X_test, y_train, y_test arrays where X_test will effectively be `fh`.
+    
+
+1. define forecasting experiment, multiple data sets, single train/test split (no sliding)
+
+    Same as point 2. The forecasting strategy will be defined in the `sktime.forecasting` module. The forecasting horison argument will be treated in the same way as point 2.

@@ -4,11 +4,11 @@
 
 ## Introduction
 
-The current implementation of the benchmarking module in sktime suffers from several limiations.
+The current implementation of the benchmarking module in sktime suffers from several limitations.
 
 * It is not compatible with forecasting tasks;
 * It does not support custom benchmarking workflows, users are forced into a set of default choices;
-* It does not support different paralelization options.
+* It does not support different parallelization options.
 
 For a preliminary discussion of some initial enhancement ideas for the benchmarking module [see this issue on Github.](https://github.com/alan-turing-institute/sktime/issues/141)
 
@@ -22,25 +22,25 @@ For a preliminary discussion of some initial enhancement ideas for the benchmark
 
 ## Problem statement
 
-The current design of the orchestrator enforces a certian workflow for supervised classification and regression tasks which does not give full flexibility to users.
+The current design of the orchestrator enforces a certain workflow for supervised classification and regression tasks which does not give full flexibility to users.
 
 The current design of the orchestrator relies on the following main components:
 
 1. Backend for saving and loading the data
 1. Wrapper class for strategies
 1. Iterator for going through strategies, datasets and cv folds
-1. Procedure for fitting the startegies 
+1. Procedure for fitting the strategies 
 1. Procedure for making predictions
 1. Evaluating the trained strategies
 
-Currently the iterator constitutes the main loop of the orchestrator and the procedure for fittigng the strategies. A `task` object holds information about the type of problem we are trying to solve, i.e. regression, classification, forecasting, prediction. A `strategy` object serves as a wrapper for the underling estimator and holds the `fit_predict` logic.
+Currently the iterator constitutes the main loop of the orchestrator and the procedure for fitting the strategies. A `task` object holds information about the type of problem we are trying to solve, i.e. regression, classification, forecasting, prediction. A `strategy` object serves as a wrapper for the underling estimator and holds the `fit_predict` logic.
 
 ## Description of proposed solution
 
-Our proposal is to exapnd the task and strategy objects and add a simplified interface for setting up experiments and evaluating the results throught the use of yaml files.
+Our proposal is to expand the task and strategy objects and add a simplified interface for setting up experiments and evaluating the results through the use of yaml files.
 
 
-The current design allows to easly add new task objects. If we want to solve the forecasting problem only we can simply use the current design to write a new forecasting task, for example:
+The current design allows to easily add new task objects. If we want to solve the forecasting problem only we can simply use the current design to write a new forecasting task, for example:
 
 ```Python
 
@@ -127,7 +127,7 @@ evaluation:
     evaluation_results: `path_where_to_save`
 ```
 
-The yaml file based and Python interfaces for specifying and evaluating experiments can coexist. For simpler experiements where only sktime modules and standard settings are used, users can use the yaml interface.
+The yaml file based and Python interfaces for specifying and evaluating experiments can coexist. For simpler experiments where only sktime modules and standard settings are used, users can use the yaml interface.
 
 For more bespoke experiments, the Python interface can be used.
 
@@ -138,7 +138,7 @@ We will consider the three individual use cases below:
 
 1. Define prediction experiment on multiple data sets, with time series classifiers
 
-    This use case is covered in the exisiting design of the benchmarking module of sktime. Therefore, no changes are required. Please see [this notebook](https://www.sktime.org/en/latest/examples/04_benchmarking.html) for an example of how this can be achieved.
+    This use case is covered in the existing design of the benchmarking module of sktime. Therefore, no changes are required. Please see [this notebook](https://www.sktime.org/en/latest/examples/04_benchmarking.html) for an example of how this can be achieved.
 
     Things to note:
     1. Users need to define a `TSCTask` object that holds the name of the column in the dataset that holds the target variable.
@@ -168,7 +168,7 @@ We will consider the three individual use cases below:
     However, we will need to write a new forecasting task that will take the `fh` as an argument. From a user point of view this will look like this:
 
     ```Python
-        task = TSFTask(tarkget="target", fh=fh)
+        task = TSFTask(target="target", fh=fh)
     ```
 
     In order to make this work, we need to change very slightly the code in the orchestrator module. This will be invisible to end users.
@@ -177,10 +177,10 @@ We will consider the three individual use cases below:
 
     ```Python
     strategy.predict(train)
-    #train are the taining samples produced by the cv algorithm
+    #train are the training samples produced by the cv algorithm
     ```
 
-    In order to make this work with the orchestrator we need to change the above line in the orchestrator to make a case distrinction based on the type of task. For example, this can look like:
+    In order to make this work with the orchestrator we need to change the above line in the orchestrator to make a case distinction based on the type of task. For example, this can look like:
 
     ```Python
     if task._type == 'prediction':
@@ -191,7 +191,7 @@ We will consider the three individual use cases below:
 
     **Alternative**
 
-    Instead of changing the `task` object to take the `fh` arguement, we can write a new *forecasting cross validation* strategy class. The cross validation strategy will take the `fh` argument and pass it to the forecasting strategy predict method as a *test dataset*. From the user point of view this will look like:
+    Instead of changing the `task` object to take the `fh` argument, we can write a new *forecasting cross validation* strategy class. The cross validation strategy will take the `fh` argument and pass it to the forecasting strategy predict method as a *test dataset*. From the user point of view this will look like:
 
     ```Python
     # run orchestrator
@@ -210,4 +210,4 @@ We will consider the three individual use cases below:
 
 1. define forecasting experiment, multiple data sets, single train/test split (no sliding)
 
-    Same as tpoint 2. The forecasting strategy will be defined in the `sktime.forecasting` module. The forecasting corison argument will be treated in the same way as point 2.
+    Same as point 2. The forecasting strategy will be defined in the `sktime.forecasting` module. The forecasting horison argument will be treated in the same way as point 2.

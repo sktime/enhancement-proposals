@@ -8,6 +8,8 @@ A sktime enhacement proposal (or STEP in short) is a design document providing i
 
 We intend STEPs to be the primary mechanisms for proposing major changes, for collecting community input on an issue, and for documenting the design decisions that have gone into sktime. Smaller changes can be discussed and implemented directly on sktime main repository. 
 
+For the general design principles and patterns followed in sktime, we refer to our paper: [Designing ML Toolboxes: Concepts, Principles and Patterns](https://arxiv.org/abs/2101.04938).
+
 STEPS are also described in our [governance document](https://www.sktime.org/en/latest/governance.html).
 
 ## Submitting a STEP

@@ -1,3 +1,4 @@
+
 # Hierarchical time series
 
 ## Introduction
@@ -55,6 +56,7 @@ where **S** is summation matrix and *$\hat{y}$* are the set of base forecasts. T
 [More Reading](https://otexts.com/fpp2/reconciliation.html)
 
 
+
 ## API Design-Example Usage(To be Modified based on feedback)
 **Load Time Series**
 
@@ -103,6 +105,7 @@ coherent_forecasts = hierarchical_reconciler.predict(forecasts)
 print(coherent_forecasts)
 ```
 ![coherent_forecasts](e_prop_4.png)<br>
+
 
 ## References
 1. https://otexts.com/fpp2/hierarchical.html

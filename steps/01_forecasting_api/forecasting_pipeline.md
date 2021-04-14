@@ -22,14 +22,15 @@ forecaster = ForecastingPipeline([
 ### ForecastingColumnTransformer
 In a second step (separate PR), we might want to also specify the exact columns of `X` like in `sklearn.ColumnTransformer`. This means we would need sth equivalent like a `ForecastingColumnTransformer` or `ExogTransformer`. This would look as follows all together:
 ```python
+column_transformer = ForecastingColumnTransformer(
+    transformers=[
+        ("imputer", Imputer(), [0,4,7]),
+        ("standardize", TabularToSeriesAdaptor(StandardScaler())), [3, 5])
+
 forecaster = ForecastingPipeline([
     ("outlier", HampelFilter(), ["y"]),
-    ("columntransformer", ForecastingColumnTransformer(
-        transformers=[
-            ("imputer", Imputer(), [0,4,7]),
-            ("standardize", TabularToSeriesAdaptor(StandardScaler())), [3, 5]),
-        ["y", "X"]),
-    ("arima", AutoARIMA(suppress_warnings=True))
+    ("columntransformer", column_transformer, ["y", "X"]),
+    ("arima", AutoARIMA())
 ])
 ```
 `ForecastingColumnTransformer` would also be able to receive `y`, in case `["y", "X"]` is given.

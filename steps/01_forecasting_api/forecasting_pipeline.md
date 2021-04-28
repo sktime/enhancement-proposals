@@ -54,7 +54,7 @@ In case steps are identical, we could just accept `steps` and copy this internal
 
 *CONs:*
 - not obvious how to access the params when doing grid search. Names of steps must be given unique like `imputer_y` and `imputer_X`. If two names are same, we would raise an error.
-- having hyperparameters separate means also a bigger grid and slower grid search.
+- having hyperparameters separate means also a bigger grid and slower grid search., however could be avoided in case only `steps` is given instead of `steps_y` and `steps_X`.
 
 ## Related issue
 We might have to implement the `X` transformation of some existing transformers which currently only supprt `pd.Series` transformations. Otherwise the application of a `ForecastingColumnTransformer` would be needed.

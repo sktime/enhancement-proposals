@@ -1,6 +1,8 @@
 
 # Hierarchical time series
 
+Contribiutors - @fkiraly, @mloning, @AngelPone, @aiwalter, @satya-pattnaik
+
 ## Introduction
 
 A Time Series which follows an hierarchical aggreagted structure for example across geographical areas.
@@ -57,7 +59,7 @@ where **S** is summation matrix and *$\hat{y}$* are the set of base forecasts. T
 
 
 
-## API Design-Example Usage(To be Modified based on feedback)
+## API Design-Example Usage
 **Load Time Series**
 
 ```
@@ -98,14 +100,98 @@ print(forecasts)
 **Hierarchical Forecast Design Sketch**
 (This will generate the coherent forecasts across the hierarchy)
 
+Added the hierarchical_encoding part which I had missed(after suggestions from **@AngelPone** and **@fkiraly**)
+
 ```
-hierarchical_reconciler = HierarchicalReconcile(method="ols")
+hierarchical_encoding=create_hierarchical_encodings(df) #Added this part, which I had forgot in the initial sketch
+hierarchical_reconciler = HierarchicalReconcile(hierarchical_encoding,method="ols")
 hierarchical_reconciler.fit(ts)
 coherent_forecasts = hierarchical_reconciler.predict(forecasts)
 print(coherent_forecasts)
 ```
 ![coherent_forecasts](e_prop_4.png)<br>
 
+## Refined API Design Sketch(as per suggestions from @AngelPone) 
+```
+class BaseHierarchy():
+    def aggregate_ts():
+    # construct df used for generating base forecasts and reconciliation
+
+class CrossSectionalHierarchy(BaseHierarchy):
+    # classmethod used for construction of hierarchy from different abstract descriptions.
+    @classmethod
+    def from_xxx():
+        return cls()
+
+class TemporalHierarchy(BaseHierarchy):
+    def __init__():
+
+# Forecasters
+def wls():
+
+def mint():
+
+class HierarchicalForecaster(BaseForecaster):
+    def __init__(hierarchy, base_forecasters:Union[BaseForecaster|List|Dict], method="ols", 
+                  weights=Optional[str])
+
+    def _check_y_X():
+
+    def _fit_forecasters(y, X, return_residuals=False):
+    def _predict_forecasters(X):
+
+    def _fit(y, X):
+        df = self.hierarchy.aggregate_ts(y)
+
+        if self.method=='ols':
+            self._fit_forecasters(df, X)
+            self.G_ = wls(self.hierarchy, weights=None)
+        elif self.method == 'wls':
+            self.G_ = wls(self.hierarchy, weights=weights)
+        elif self.method == 'mint':
+            residuals = self._fit_forecasters(df, X, True, weights=weights)
+            self.G_ = mint(self.hierarchy, residuals)
+        else:
+            raise ValueError()
+
+    def _predict(X):
+        base_forecasts = self._predict_forecasters(X)
+        reconciled_forecasts = self.G_.dot(base_forecasts)
+        if isinstance(self.hierarchy, TemporalHierarchy):
+            return reconciled_forecasts.flat()
+        return reconciled_forecasts
+
+```
+### Use Case(Based on the above design)
+```
+y = load_data()
+ht = Hierarchy.from_xxx()
+hforecasters = HierarchicalForecaster(ht, method="ols", base_forecasters=AutoArima(sp=7))
+hforecasters.fit(y)
+reconciled_forecasts = hforecasters.predict([1])
+```
+
+### Modification to the Sketch(as per @mloning)
+```
+class BaseReconciler()
+    def fit(...):
+        ...
+
+    def reconcile(...):
+        ...
+        
+class OLS(BaseReconciler):
+    ...
+
+#Use case
+ols = OLS()
+
+y = load_data()
+ht = Hierarchy.from_xxx()
+hforecasters = HierarchicalForecaster(ht, method=ols, base_forecasters=AutoArima(sp=7))
+hforecasters.fit(y)
+reconciled_forecasts = hforecasters.predict([1])
+```
 
 ## References
 1. https://otexts.com/fpp2/hierarchical.html

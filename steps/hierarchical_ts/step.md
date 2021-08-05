@@ -1,7 +1,7 @@
 
 # Hierarchical time series
 
-Contribiutors - @fkiraly, @mloning, @AngelPone, @aiwalter, @satya-pattnaik
+Contribiutors - @fkiraly, @mloning, @AngelPone, @aiwalter, @satya-pattnaik, @ltsaprounis
 
 ## Introduction
 

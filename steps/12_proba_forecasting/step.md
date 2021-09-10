@@ -76,3 +76,12 @@ Each new method has a private counterpart which is called internally, i.e., `_pr
 To ensure downwards compatibility, the `return_pred_int` and `alpha` parameters will still be accepted by `predict` until the end of the next deprecation cycle.
 
 If these are passed and `return_pred_int=True`, the base class directs the `predict` call to `predict_interval` where possible; for downwards compatibility, a temporary boolean tag `old_predict_interval_logic` directs to `_predict` instead, with the aim to remove prediction interval 
+
+### removal/refactor of unnecessary `BaseForecaster` methods
+
+Currently, there are a number of unnecessary methods in the `BaseForecaster` which need to be refactored.
+
+* `compute_pred_int`, seems to duplicate the current interface point in `predict`, used only by `theta`, move there
+* `_compute_pred_int`, called by `compute_pred_int` only, move to `theta`
+* `_get_pred_int`, used only by `_tbats` - move to `_tbats`
+* `_compute_pred_err`, called by `compute_pred_err`, used for override in some descendants, move there or keep

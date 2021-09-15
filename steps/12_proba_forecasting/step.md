@@ -1,6 +1,6 @@
 # probabilistic forecasting API
 
-Contributors: @fkiraly, 
+Contributors: @fkiraly, @sveameyer13
 
 ## High-level summary 
 

@@ -77,7 +77,9 @@ Each new method has a private counterpart which is called internally, i.e., `_pr
 
 To ensure downwards compatibility, the `return_pred_int` and `alpha` parameters will still be accepted by `predict` until the end of the next deprecation cycle.
 
-If these are passed and `return_pred_int=True`, the base class directs the `predict` call to `predict_interval` where possible; for downwards compatibility, a temporary boolean tag `old_predict_interval_logic` directs to `_predict` instead, with the aim to remove prediction interval 
+If these are passed and `return_pred_int=True`, the base class directs the `predict` call to `predict_interval` where possible; Note: this is always possible once a specific forecaster is refactored. Whether a forecaster is already refactored will be checked for in an additional class method `_has_refactored_predict_interval()`;
+
+Since the return type of prediction intervals also changes, a boolean tag `keep_old_return_type=True` will temporarily be passed to `predict`, allowing the user to decide whether he wants to use the old return type (also possible until the next deprecation cycle". 
 
 ### removal/refactor of unnecessary `BaseForecaster` methods
 

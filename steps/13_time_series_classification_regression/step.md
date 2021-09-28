@@ -6,7 +6,19 @@ Contributors: @RavenRudi
 Regression and Classification are two very similiar tasks. Many already implemented time series classifiers can be used as regressors by solely changing a few lines of code. 
 
 ## Contents
-[table of contents]
+- [Design Time Series Classification/Regression Module](#design-time-series-classificationregression-module)
+  - [Introduction](#introduction)
+  - [Contents](#contents)
+  - [Problem statement](#problem-statement)
+    - [Example](#example)
+    - [Questions](#questions)
+    - [Current work on the module](#current-work-on-the-module)
+  - [Motivation](#motivation)
+  - [Description of proposed solution](#description-of-proposed-solution)
+    - [Level 1](#level-1)
+    - [Level 2](#level-2)
+    - [Level 3](#level-3)
+  - [Discussion and comparison of alternative solutions](#discussion-and-comparison-of-alternative-solutions)
 
 ## Problem statement
 Extending the time series regression module without a clear design specification will likely lead to boilplate code and inconsistent code design especially in the regression module.

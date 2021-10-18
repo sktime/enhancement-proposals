@@ -73,7 +73,7 @@ Each estimator may or may not have the capability to predict variances, interval
 
 ### public/private interface
 
-Each new method has a private counterpart which is called internally, i.e., `_predict_var`, `_predict_interval`, `_predict_proba`. As in the generic `sktime` design, the public method contains "plumbing", while the private class is the extension locus and contains only method logic.
+Each new method has a private counterpart which is called internally, i.e., `_predict_var`, `_predict_quantiles`, `_predict_proba`. As in the generic `sktime` design, the public method contains "plumbing", while the private class is the extension locus and contains only method logic. There is no `_predict_interval` since `predict_interval` defaults to a specific call of `_predict_quantiles`.
 
 ### Downwards compatibility: `predict`
 

@@ -68,7 +68,7 @@ If `predict_proba` is implemented, the other three `predict` functions default t
 Each estimator may or may not have the capability to predict variances, intervals, etc. For this, the following boolean tags are introduced, with their obvious meaning:
 
 * `capability:predict_var`
-* `capability:predict_interval`
+* `capability:predict_quantiles`
 * `capability:predict_proba`
 
 ### public/private interface

@@ -59,7 +59,7 @@ If `predict_proba` is implemented, the other three `predict` functions default t
 
 * `predict` calls `predict_proba` and then the mean
 * `predict_var` calls `predict_proba` and then the (co-)variance
-* `predict_interval` calls `predict_proba` and then the quantile function
+* `predict_quantiles` calls `predict_proba` and then the quantile function
 
 (of the distribution object returned by `predict_proba`)
  

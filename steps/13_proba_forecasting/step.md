@@ -40,7 +40,7 @@ NOTE: this convention allows the `predict` return to lie outside, say, 5/95% pre
 
 We specify the function signature of the new methods:
 
-* `predict(self, fh=None, X=None) -> Series` is the target signature of `predict`. This differs from temporary signature to be deprecated (below).
+* `predict(self, fh=None, X=None) -> Series` is the target signature of `predict`. It returns point estimates. This differs from temporary signature to be deprecated (below).
 
 * `predict_var(self, fh=None, X=None, cov=False) -> np.ndarray` returns: if `cov=False`, an vector of same length as `fh` with predictive marginal variances; if `cov=True`, a square matrix of size `len(fh)` with predictive covariance matrix
 
@@ -79,9 +79,10 @@ Each new method has a private counterpart which is called internally, i.e., `_pr
 
 To ensure downwards compatibility, the `return_pred_int` and `alpha` parameters will still be accepted by `predict` until the end of the next deprecation cycle.
 
-If these are passed and `return_pred_int=True`, the base class directs the `predict` call to `predict_interval` where possible; Note: this is always possible once a specific forecaster is refactored. Whether a forecaster is already refactored will be checked for in an additional class method `_has_refactored_predict_interval()`;
+If these are passed and `return_pred_int=True`, the base class directs the `predict` call to `predict_interval` (with the coverage paramter set to 1-alpha) where possible; Note: this is always possible once a specific forecaster is refactored. Whether a forecaster is already refactored will be checked for in an additional class method `_has_refactored_predict_interval()`;
 
-Since the return type of prediction intervals also changes, a boolean tag `keep_old_return_type=True` will temporarily be passed to `predict`, allowing the user to decide whether he wants to use the old return type (also possible until the next deprecation cycle". 
+Since the return type of prediction intervals also changes, a boolean tag `keep_old_return_type=True` will temporarily be passed to `predict`, allowing the user to decide whether he wants to use the old return type (also possible until the next deprecation cycle)". 
+If the user wants to keep the old_return a (temporally existing helper) function `_temp_new_to_old_transformer` is called to transform the new output format back into the new output format. 
 
 ### removal/refactor of unnecessary `BaseForecaster` methods
 

@@ -30,6 +30,7 @@ Below, variables `y` and `X` can be hierarchical time series.
 For the prototype, there will be only one `mtype` representing hierarchical time series, as follows.
 
 A hierarchical time series is represented by a `pd.DataFrame`, which has a multi-index of `n` levels, `n` being 1 or larger. The last, `n`-th level of the index must be one of the supported temporal indices in `sktime` (see data type specification). The other levels can have arbitrary values.
+Below, we call these `n-1` levels "non-temporal".
 
 Post-prototype, further `mtype`-s may bei ntroduced.
 
@@ -41,7 +42,7 @@ To facilitate testing of the design, we omit special `predict` and `update` vari
 The class inherits from `sktime`'s `BaseEstimator` (and hence `BaseObject`).
 
 ```python
-    def fit(self, y, X=None, Z=None, fh=None):
+    def fit(self, y, X=None, fh=None, Z=None):
         """Fit forecaster to training data.
 
         State change:
@@ -153,18 +154,23 @@ Further function with usual default is `fit_predict`.
 
 Each method has a private counterpart which is called internally, i.e., `_fit`, `_predict`, `_update`. As in the generic `sktime` design, the public method contains "plumbing", while the private class is the extension locus and contains only method logic.
 
-### apply-by-level
+### automatic vectorization: apply-by-level
 
-To allow leveraging existing forecasters, we introduce default "apply-by-level" functionality.
+To allow leveraging existing forecasters, we introduce default vectorization functionality which applies existing forecasters by level.
 
-For this, a boolean tag `scitype:hierarchical` is introduced - if False, the forecaster is not genuinely hierarchical. In this case, `_fit`, `_predict` etc are only defined for "plain" (1 level indexed) time series. If a hierarchical time series with 2 or more levels is passed to `fit`, `predict`, etc, copies of the forecasters are made per instance (in an attribute `hierarchy_estimators_`) and fitted/predicted/updated per instance.
+For this, a string tag `"scitype:forecast-level"` is introduced. This can be `Series`, `Panel`, or `Hierarchical`.
+If `Series`, the forecaster is not genuinely hierarchical. In this case, `_fit`, `_predict` act primarily on "plain" (1 level indexed by time) time series. If a hierarchical time series with 1 or more non-temporal levels is passed to `fit`, `predict`, etc, copies of the forecasters are made per instance (in an attribute `hierarchy_forecasters_`) and fitted/predicted/updated per instance.
+
+If `Hierarchical`, the forecaster can internally handle arbitrary hierarchies.
+
+If `Panel`, the forecaster can handle only a single level of hierarchy ("instance" level), and any hierarchies are flattened to a single non-temporal level.
 
 ### Downwards compatibility with current `BaseForecaster`
 
 Ultimately, the idea is that the current `BaseForecaster` can be replaced with the new base class.
 For this, the following steps need to be taken beyond simple replacement:
 
-* default tag setting `"scitype:hierarchical=False"` for existing non-hierarchical forecasters.
+* default tag setting `"scitype:forecast-level"="Series"` for existing non-hierarchical forecasters.
 * ensure that additional input/output types are properly handled in `Series` and `Panel` case, this is not detailed in the above prototype design
 * ensure that current forecaster tests pass
 * implement special `predict` and `update` methods (with appropriate signatures), e.g., `predict_quantiles`, `update_predict`
@@ -186,7 +192,7 @@ The following should be taken into account:
 * definition and checks for the hierarchical `mtype` should be included in the `datatypes` module, e.g., checking that the last level is temporal of a supported type
 * generators for hierarchical `mtype` are needed for use in the tests
 * between `fit` and `update`, it needs to be checked that `y`, `X` have same levels
-* the `"scitype:hierarchical"` tag functionality needs to be tested
+* the `"scitype:forecast-level"` tag functionality needs to be tested
 
 The "apply-by-level" functionality can also be implemented after step 3.
 

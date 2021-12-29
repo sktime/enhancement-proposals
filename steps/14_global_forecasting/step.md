@@ -1,4 +1,4 @@
-# probabilistic forecasting API
+# API for hierarchical, global, and panel forecasting
 
 Contributors: @fkiraly, @danbartl, @ltsaprounis, @mloning, @aiwalter, @satyapattnaik
 

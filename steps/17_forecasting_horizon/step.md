@@ -1,4 +1,4 @@
-# Forecasting Horizon
+# Addressing `pandas` `freq` deprecation within Forecasting Horizon
 
 Contributors: @khrapovs
 

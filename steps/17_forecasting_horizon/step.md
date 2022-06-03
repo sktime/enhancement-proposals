@@ -1,4 +1,4 @@
-# Addressing `pandas` `freq` deprecation within Forecasting Horizon
+# Addressing `pandas` `freq` deprecation within ForecastingHorizon
 
 Contributors: @khrapovs
 
@@ -8,7 +8,7 @@ Currently, `ForecastingHorizon` object allows conversion to relative/absolute ve
 
 Related issue: [#1750](https://github.com/alan-turing-institute/sktime/issues/1750)
 
-## Description of proposed solution
+## Solution options
 
 ### 1. Prohibit `pd.Timestamp` type for `cutoff` argument
 

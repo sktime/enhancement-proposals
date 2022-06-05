@@ -132,12 +132,13 @@ def _check_freq(freq):
 
 def some_method(foo, bar, freq=None):
     freq = self._check_freq(freq)
-
 ```
 
 or similar.
 
 ### accepting more `freq` inferrable formats
+
+This can be combined with any of the type 2 options.
 
 To make the logic robust w.r.t. future deprecations or changes how `freq` is handled in `pandas`,
 there should be a `get_freq` function which can extract `freq` from a large range of objects.

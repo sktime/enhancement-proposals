@@ -4,7 +4,7 @@ Contributors: @khrapovs
 
 ## Problem statement
 
-Currently, all splitters in `sktime/forecasting/model_selection/_split.py` assume that the data passed to `.split(y)` method is "regular". By "regular" we mean here that $(y_1,y_2,\ldots,y_t})$ are all equally spaced, there are no missing values (all indices $1,\ldots,t$ are present), and there is only one observation for each time index. This works fine for a typical forecasting pipeline:
+Currently, all splitters in `sktime/forecasting/model_selection/_split.py` assume that the data passed to `.split(y)` method is "regular". By "regular" we mean here that $(y_1,y_2,\ldots,y_t)$ are all equally spaced, there are no missing values (all indices $1,\ldots,t$ are present), and there is only one observation for each time index. This works fine for a typical forecasting pipeline:
 - get raw irregular data
 - process data (aggregate, impute, align, etc.)
 - forecast $y$

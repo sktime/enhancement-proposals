@@ -1,6 +1,6 @@
 # Cross-validation with irregular time series data
 
-Contributors: @khrapovs
+Contributors: [@khrapovs](https://github.com/khrapovs)
 
 ## Problem statement
 

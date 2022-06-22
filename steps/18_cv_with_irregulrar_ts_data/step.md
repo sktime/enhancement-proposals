@@ -31,7 +31,7 @@ One example use case is the following. Suppose that besides the main forecasting
   - **forecast $Z$ from the auxiliary model**
   - **forecast $y$ from the main model using both $X$ and $Z$**
 
-Data processing after splitting (not before) is essential here in order to preserve cross-validation fairness in the sense of avoiding the usage of future data. If the data was processed (e.g. aggregated and imputed) before splitting, this would potentially leak future information into the past. 
+Data processing after splitting (not before) is essential here in order to preserve cross-validation fairness in the sense of avoiding the usage of future data. If the data was processed (e.g. aggregated and imputed) before splitting, this would potentially leak future information into the past.
 
 For preliminary discussions of the proposal presented here, see issue:
 - https://github.com/alan-turing-institute/sktime/issues/1737

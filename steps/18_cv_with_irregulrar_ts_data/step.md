@@ -38,7 +38,23 @@ For preliminary discussions of the proposal presented here, see issue:
 
 ## Description of proposed solution
 
-Suppose we have the following time series: $(y_1,y_2^a,y_2^b,y_4)$. For this ordering the corresponding enumeration is $(1,2,3,4)$. Here we have two observations for the time index $2$ and no observation for time index $3$. Below is the list of cutoffs and expected train/test splits:
+Suppose we have the following time series: $(y_1,y_2^a,y_2^b,y_4)$. For this ordering the corresponding enumeration is $(1,2,3,4)$. Here we have two observations for the time index $2$ and no observation for time index $3$. Below is the list of cutoffs and train/test splits that take into account only the order of observations:
+
+| cutoff | train               | test                |
+|--------|---------------------|---------------------|
+| 1      | $(y_1)$             | $(y_2^a,y_2^b,y_4)$ |
+| 2      | $(y_1,y_2^a)$       | $(y_2^b,y_4)$       |
+| 3      | $(y_1,y_2^a,y_2^b)$ | $(y_4)$             |
+
+or, in terms of enumeration indices:
+
+| cutoff | train             | test      |
+|--------|-------------------|-----------|
+| 1      | $(1)$             | $(2,3,4)$ |
+| 2      | $(1,2)$           | $(3,4)$   |
+| 3      | $(1,2,3)$         | $(4)$     |
+
+Below is the list of cutoffs and train/test splits that take into account original time indices:
 
 | cutoff | train               | test                |
 |--------|---------------------|---------------------|
@@ -53,3 +69,5 @@ or, in terms of enumeration indices:
 | 1      | $(1)$               | $(2,3,4)$ |
 | 2      | $(1,2,3)$           | $(4)$     |
 | 3      | $(1,2,3)$           | $(4)$     |
+
+This example hints for the correct implementation to achieve the goal. Splitters internally should work with original time indices and ignore the order in which the data is given. This would also solve the case when the data is not sorted over time.

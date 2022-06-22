@@ -38,7 +38,7 @@ For preliminary discussions of the proposal presented here, see issue:
 
 ## Description of proposed solution
 
-Suppose we have the following time series: $\left(y_1,y_2^a,y_2^b,y_4\right)$. For this ordering the corresponding enumeration is $(2,3,4)$. Here we have two observations for the time index $2$ and no observation for time index $3$.
+Suppose we have the following time series: $\left(y_1,y_2^a,y_2^b,y_4\right)$. For this ordering the corresponding enumeration is $(1,2,3,4)$. Here we have two observations for the time index $2$ and no observation for time index $3$.
 
 **Current state**
 

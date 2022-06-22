@@ -38,7 +38,11 @@ For preliminary discussions of the proposal presented here, see issue:
 
 ## Description of proposed solution
 
-Suppose we have the following time series: $(y_1,y_2^a,y_2^b,y_4)$. For this ordering the corresponding enumeration is $(1,2,3,4)$. Here we have two observations for the time index $2$ and no observation for time index $3$. Below is the list of cutoffs and train/test splits that take into account only the order of observations:
+Suppose we have the following time series: $(y_1,y_2^a,y_2^b,y_4)$.
+
+**Current state**
+
+Below is the list of cutoffs and train/test splits that take into account only the order of observations:
 
 | cutoff | train               | test                |
 |--------|---------------------|---------------------|
@@ -53,6 +57,8 @@ or, in terms of enumeration indices:
 | 1      | $(1)$             | $(2,3,4)$ |
 | 2      | $(1,2)$           | $(3,4)$   |
 | 3      | $(1,2,3)$         | $(4)$     |
+
+**Expected state**
 
 Below is the list of cutoffs and train/test splits that take into account original time indices:
 

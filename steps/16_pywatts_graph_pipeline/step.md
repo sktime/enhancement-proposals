@@ -44,15 +44,46 @@ such pipelines in pyWATTS.
 * How is the data flow be realised
   * Step fetches the data and maintains a buffer
 
-## Description of proposed solution
+## Design considerations
 
-### Adding transformers, etc. to a graph pipeline
-#### Requirements:
-1. It has to be possible to add a transformer with multiple inputs
-2. It has to be possible to use a transformer as input for multiple other transformers
-3. Passing additional parameters to control the execution of the transformers etc.
+### Requirements
 
-#### Solution 1: Current Keras-Style API Solution in pyWATTS
+1. it should be possible to use the pipeline as an `sktime` estimator
+2. It has to be possible to add a estimators with multiple inputs
+3. It has to be possible to use a transformer as input for multiple other estimators
+4. parameters to control the execution of the transformers
+5. compatibility with `sktime` current interface and `pywatts`
+
+### Design principles
+
+* use of the `__call__` dunder for composition, in `keras` style
+* `sklearn` and `sktime` compatibility, idiomatic closeness
+* preferably: simple declarative syntax, low number of arguments/components
+
+
+### design elements
+
+a. `__call__` return: `StepInformation` vs `GraphPipeline`
+b. does `StepInformation` still exist under the hood? If (a) was `GraphPipeline`
+c. input subsetting and output subsetting, what is syntax?
+    * input subsetting syntax options:
+        * there is no input subsetting. So, extra "`Pipeline`" object used as a first element, acts as `IdentityTransformer` that allows to consider input subsetting as output subsetting of a preceding identity element.
+        * `Column` object passed to `__call__`
+        * `ColumnSelectorTransformer` used as first element
+    * output subsetting syntax options:
+        * `ColumnSelectorTransformer` used at the end
+        * square bracket dunder, equivalent to post-concatenating `ColumnSelectorTransformer`
+        * output column selection argument in `__call__`
+    * all take as args string/int or index or list of string/int (columns to subset to)
+        * current pywatts only allows only single variable (string)
+d. does passing pipelines through call dunders modify the state/composition of pipelines? I.e., "pure" interface, or "impure"?
+    * yes, `__call__` modifies pipelines inside, "build-by-modification"
+    * no, `__call__` does not modify pipeline, "build-by-clone"
+    * no, `__call__` does not modify pipeline, "build-by-reference"
+
+## Sketches of solutions, from pywatts/sktime meetings
+
+### Solution 1: Current Keras-Style API Solution in pyWATTS
 The current solution in pyWATTS is as follows:
 ```python
 pipeline = Pipeline()
@@ -78,7 +109,7 @@ The `__call__` dunder implementation could like as:
             )
 ```
 
-#### Solution 2: Keras like API with GraphPipeline Object instead of StepInformation
+### Solution 2: Keras like API with GraphPipeline Object instead of StepInformation
 Based on the solution above, the `StepInformation` could be replaced by an object which is 
 itself a transformer etc.
 ```python
@@ -91,9 +122,89 @@ graph_pipeline3.train(data)
 To implement this solution the ```__call__``` in base could look like:
 
 
-Possible Graphpipeline implementations:
+### Solution 3: Full Keras Like API
+In contrast to the above solutions, the pipeline can be created by specifying the inputs and output transformers. 
+This could look as follows:
 
-##### Possible implementation of `GraphPipeline` types: delegation
+```python
+step_information_1 = Transformer()(x=Column("bar"))
+step_information_2 = Transformer()(x=step_information_1)
+step_information_3 = Transformer()(x_1=step_information_1, x_2=step_information_2, **additional_params)
+
+pipeline = Pipeline(inputs=[step_information_1], outputs=[step_information_3])
+pipeline.train(data)
+```
+`Column("bar")` determines which column of the input data is used as input for the transformer.
+
+Probably this can be combined with the GraphPipeline approach.
+
+
+### Solution 4: Removing the initialisation of the Pipeline
+Perhaps, we can even remove the need to initialise a Python object:
+
+```python
+graph_pipeline_1 = Transformer()(x=Column("bar"))
+graph_pipeline_2 = Transformer()(x=step_information_1)
+graph_pipeline_3 = Transformer()(x_1=step_information_1, x_2=step_information_2, **additional_params)
+graph_pipeline_3.train(data)
+
+```
+This solution is similar to Solution 2
+
+
+### solutions in the design space
+
+Aligning solution with design decisions:
+
+#### Solution 1:
+
+(a) -> `StepInformation`
+
+( c) input -> extra `Pipeline`; output -> bracket dunder (on `StepInformation`)
+
+(d) -> yes
+(`step_information = foo(pipeline)` modifies pipeline)
+
+
+#### Solution 2:
+
+(a) -> `GraphPipeline`
+(b) -> yes
+
+( c) input -> extra `Pipeline`; output -> bracket dunder (on `GraphPipeline`)
+
+(d) -> no, by reference
+
+#### Solution 3:
+
+(a) -> `StepInformation`
+
+( c) input -> `Columns` obj in `__call__` dunder; output -> unspecified
+
+(d) -> no, by reference
+
+#### Solution 4:
+
+(a) -> `GraphPipeline`
+(b) -> yes
+
+( c) input -> `Columns` obj in `__call__` dunder; output -> unspecified
+
+(d) -> no, by reference
+
+
+#### Solution space
+
+[[1, 2], [3, 4]] = Cartesian produce of:
+(a) = [`StepInformation`, `GraphPipeline`],
+( c) = input = [extra `Pipeline`, `Columns` obj]
+
+all have (d) = no, except for solution 1 (for some reason)
+
+
+### Graphpipeline based implementations
+
+#### Possible implementation of `GraphPipeline` types: delegation
 ```python
 class BaseForecaster(BaseObject):
     
@@ -145,7 +256,7 @@ class GraphPipeline(BaseObject):
 ```
 
 
-##### Possible implementation B of `GraphPipeline` types: dispatch
+#### Possible implementation B of `GraphPipeline` types: dispatch
 
 ```python
 
@@ -178,38 +289,3 @@ class BaseForecaster(BaseObject):
 ```
 
 where `GraphPipeline` is an intermediate base or mixin class for `GraphPipelineForecaster`, `GraphPipelineClassifier`, etc
-
-#### Solution 3: Full Keras Like API
-In contrast to the above solutions, the pipeline can be created by specifying the inputs and output transformers. 
-This could look as follows:
-
-```python
-step_information_1 = Transformer()(x=Column("bar"))
-step_information_2 = Transformer()(x=step_information_1)
-step_information_3 = Transformer()(x_1=step_information_1, x_2=step_information_2, **additional_params)
-
-pipeline = Pipeline(inputs=[step_information_1], outputs=[step_information_3])
-pipeline.train(data)
-```
-`Column("bar")` determines which column of the input data is used as input for the transformer.
-
-Probably this can be combined with the GraphPipeline approach.
-
-
-#### Solution 4: Removing the initialisation of the Pipeline
-Perhaps, we can even remove the need to initialise a Python object:
-
-```python
-graph_pipeline_1 = Transformer()(x=Column("bar"))
-graph_pipeline_2 = Transformer()(x=step_information_1)
-graph_pipeline_3 = Transformer()(x_1=step_information_1, x_2=step_information_2, **additional_params)
-graph_pipeline_3.train(data)
-
-```
-This solution is similar to Solution 2
-
-### Data exchange format between transformers, ..
-
-
-### 
-

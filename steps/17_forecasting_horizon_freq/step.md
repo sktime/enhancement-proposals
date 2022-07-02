@@ -150,3 +150,32 @@ Preferably:
 * `freq` strings as used in `pandas`
 
 The function `get_freq` can then be invoked at the start of any method with a `freq` input to convert different possible input options to a uniform `freq` representation.
+
+### 3. turn `cutoff` into a `pd.Index`
+
+Time-like `pd.Index` objects carry a `freq` attribute and will also not lose it in the above-mentioned deprecation.
+
+This motivates the following solution: turning forecasters' `cutoff` into a one-element `pd.Index` with `freq`.
+
+The solution combines the following:
+
+* the possibility to pass `freq` strings to methods of `ForecastingHorizon`, like in 2.
+* turning `_cutoff` and possibly `cutoff` attributes into  length 1 `pandas.Index` objects
+* extend utilities that take a cutoff so they can input a length 1 index with potential `freq` attribute
+* extend utilities sthat return a cutoff so they can return a length 1 index that stores `freq`
+* in private interfaces, use `pd.Index` typed `_cutoff` instead of `cutoff`
+
+The advantage of this solution is that existing logic and arguments can be kept.
+
+If utilities are extended with polymorphic signatures, downwards compatibility is also maintained. 
+This means:
+* where utilities accept index element input, they should also accept length 1 `pd.Index` input
+* where utilities return index element output, they should be able to return lenght 1 `pd.Index` input
+* which of the two outputs is returned is controlled by a `return_index` boolean argument (default=`False`)
+
+Optionally, `cutoff` in index element format can be deprecated in favour of `_cutoff`.
+
+Utilities affected by this change:
+
+* `get_cutoff`: should be changed to also allow `pd.Index` return and retain `freq`
+* `_shift`: should be changed so it accepts and returns both `pd.Index` and index element

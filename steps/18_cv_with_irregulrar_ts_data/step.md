@@ -84,7 +84,7 @@ This example hints for the correct implementation to achieve the goal. Splitters
 
 ### Formal definition and proposal
 
-Denote a time series index as $T={t(1),\ldots,t(k)}$. Assume that it is sorted, that is $t(i+1)\geq t(i)$. Also assume that $t(i)$ can be either an integer or a date/time value.
+Denote a time series index as $T=\\{t(1),\ldots,t(k)\\}$. Assume that it is sorted, that is $t(i+1)\geq t(i)$. Also assume that $t(i)$ can be either an integer or a date/time value.
 
 **Definition.** A time series is regular if $t(i+1)-t(i)=t(j+1)-t(j)$ for any $i,j\in\{2,\ldots,k\}$. Conversely, a time series is irregular, if there exists $i\neq j$ such that $t(i+1)-t(i)\neq t(j+1)-t(j)$.
 

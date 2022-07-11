@@ -98,7 +98,7 @@ np.arange(train_start, train_end + 1)
 ```
 gave us `iloc` references to the train window.
 
-After a series of refactoring PRs this implementation was generalized using `pandas.Index.get_loc` and `numpy.argwhere` methods. The first one is used to obtain `iloc` reference $s$ in $t(s)$, while the second is used to get `iloc` references $\{m_1,\ldots,\m_f\}$ and $\{h_1,\ldots,h_p\}$. For example,
+After a series of refactoring PRs this implementation was generalized using `pandas.Index.get_loc` and `numpy.argwhere` methods. The first one is used to obtain `iloc` reference $s$ in $t(s)$, while the second is used to get `iloc` references $\{m_1,\ldots,m_f\}$ and $\{h_1,\ldots,h_p\}$. For example,
 ```python
 train_end = y.get_loc(cutoff)
 ```

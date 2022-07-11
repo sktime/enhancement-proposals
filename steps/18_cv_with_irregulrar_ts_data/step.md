@@ -86,9 +86,9 @@ This example hints for the correct implementation to achieve the goal. Splitters
 
 Denote a time series index as $T=\\{t(1),\ldots,t(k)\\}$. Assume that it is sorted, that is $t(i+1)\geq t(i)$. Also assume that $t(i)$ can be either an integer or a date/time value.
 
-**Definition.** A time series is regular if $t(i+1)-t(i)=t(j+1)-t(j)$ for any $i,j\in\{2,\ldots,k\}$. Conversely, a time series is irregular, if there exists $i\neq j$ such that $t(i+1)-t(i)\neq t(j+1)-t(j)$.
+**Definition.** A time series is regular if $t(i+1)-t(i)=t(j+1)-t(j)$ for any $i,j\in\\{2,\ldots,k\\}$. Conversely, a time series is irregular, if there exists $i\neq j$ such that $t(i+1)-t(i)\neq t(j+1)-t(j)$.
 
-**Definition.** A cutoff is a reference to the index $t(s)$ such that $t(1)\leq t(s)\leq t(k)$. It separates train and test windows, $F=\{t(m_1),\ldots,t(m_f)\}$ and $P=\{t(h_1),\ldots,t(h_p)\}$, respectively. Exact definition of a train/test window depends on a specific splitter. Regardless of a splitter, $t(s)\geq t\in F$ and $t(s)< t\in P$. 
+**Definition.** A cutoff is a reference to the index $t(s)$ such that $t(1)\leq t(s)\leq t(k)$. It separates train and test windows, $F=\\{t(m_1),\ldots,t(m_f)\\}$ and $P=\\{t(h_1),\ldots,t(h_p)\\}$, respectively. Exact definition of a train/test window depends on a specific splitter. Regardless of a splitter, $t(s)\geq t\in F$ and $t(s)< t\in P$. 
 
 For a regular time series it is guaranteed that any cutoff $t(s)\in T$. Conversely, for irregular time series there exists $s$ such that $t(s)\notin T$.
 
@@ -98,7 +98,7 @@ np.arange(train_start, train_end + 1)
 ```
 gave us `iloc` references to the train window.
 
-After a series of refactoring PRs this implementation was generalized using `pandas.Index.get_loc` and `numpy.argwhere` methods. The first one is used to obtain `iloc` reference $s$ in $t(s)$, while the second is used to get `iloc` references $\{m_1,\ldots,m_f\}$ and $\{h_1,\ldots,h_p\}$. For example,
+After a series of refactoring PRs this implementation was generalized using `pandas.Index.get_loc` and `numpy.argwhere` methods. The first one is used to obtain `iloc` reference $s$ in $t(s)$, while the second is used to get `iloc` references $\\{m_1,\ldots,m_f\\}$ and $\\{h_1,\ldots,h_p\\}$. For example,
 ```python
 train_end = y.get_loc(cutoff)
 ```
@@ -108,7 +108,7 @@ np.argwhere((y >= train_start) & (y <= train_end))
 ```
 gives us `iloc` references to the train window. The advantage here is that we may pass an irregular time series and still get correct `iloc` indices.
 
-Going deeper into the implementation it turns out that such a refactoring is still not sufficient to treat all currently existing splitters. In particular, `y.get_loc(cutoff)` raises `KeyError` if `cutoff` does not belong to the index `y`. We propose to treat this as follows. For an irregular index $T=\{t(1),\ldots,t(k)\}$ we can construct a corresponding regular index $T^\prime=\{t^\prime(1),\ldots,t^\prime(l)\}$ such that $t(1)=t^\prime(1)$ and $t(k)=t^\prime(l)$. For such an index 
+Going deeper into the implementation it turns out that such a refactoring is still not sufficient to treat all currently existing splitters. In particular, `y.get_loc(cutoff)` raises `KeyError` if `cutoff` does not belong to the index `y`. We propose to treat this as follows. For an irregular index $T=\\{t(1),\ldots,t(k)\\}$ we can construct a corresponding regular index $T^\prime=\\{t^\prime(1),\ldots,t^\prime(l)\\}$ such that $t(1)=t^\prime(1)$ and $t(k)=t^\prime(l)$. For such an index 
 ```python
 y_regular.get_loc(cutoff)
 ```

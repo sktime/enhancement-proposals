@@ -116,6 +116,8 @@ memory_serial = vecm.save()
 # 3. deserialization from in-memory object
 model = load(memory_serial)
 
+# guarantee: model is a perfect copy of vecm at the end of 1.
+
 # 4. use of deserialized object
 model.predict(fh=fh)
 # potentially further method calls or state change
@@ -145,6 +147,8 @@ from sktime import load
 # 3. deserialization from in-memory object
 file_location = "my/file/location"
 model = load(memory_serial)
+
+# guarantee: model is a perfect copy of vecm at the end of 1.
 
 # 4. use of deserialized object
 model.predict(fh=fh)

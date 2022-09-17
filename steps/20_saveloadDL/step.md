@@ -1,4 +1,4 @@
-# Save/Load for DL Estimators
+# Serialization and deserialization interface for estimators
 
 Contributors: fkiraly, achieveordie, aurumnpegasus
 

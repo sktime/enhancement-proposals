@@ -184,6 +184,11 @@ The complete version of this code is written in `Solution_1/cnnclass.py`. The di
 ---
 
 
+### Steps to create a new Classifiers (XClassifier)
+
+1. Create `XNetwork` class, which inherits from `BaseDeepNetwork`
+2. Create `XClassifier` class, which inherits from both `XNetwork` and `BaseDeepClassifier`
+
 Pros:
 1. `CNNNetwork` becomes deeply integrated to the appropriate classifiers
 2. There are 2 different base classes for DL estimators
@@ -246,6 +251,14 @@ class BaseDeepClassifier(BaseClassifier, ABC, BaseDeepEstimator):
 ```
 
 Here, the `CNNClassifier` largly remains unchanged as well, since the structure of it doesnt go through a huge change. 
+
+### Steps to Implement a New Classifier (XClassifier)
+
+1. Create a `XNetwork` class, which inherits from `BaseDeepNetwork`
+2. Create the `XClassifier` class, which inherits from `BaseDeepClassifier`
+3. Create an object of `XNetwork` in `__init__` of `XClassifier`, which is then used in `build_model` function of `XClassifier` to get the keras network.
+
+These steps are the same on how to create a new classifier in current implementation.
 
 ---
 

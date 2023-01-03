@@ -286,6 +286,8 @@ It contains the following files:
 
 - `_metadata` : contains class of self, i.e., type(self)
 - `_obj` : serialized self. This class uses the default serialization (pickle).
+- `/keras`: a sub directory with dumped self.model_
+- `/history`: a sub directory with dumped self.history.history
 
 
 ### Code design: estimator methods
@@ -354,11 +356,8 @@ An intermediate base class for such deep learning models (`tensorflow` based) is
 #### save
 
 - If `path=none`: It returns a tuple, with metadata of `self` at index 0 and a tuple containing pickle dumped `self`, `in_memory_model` dumped using `h5py` and pickle dumped `in_memory_history` at index 1
-- If a `path` is provided (similar to normal implementation): it makes a zip file with following items
-  - `_metadata` : contains class of self, i.e., type(self)
-  - `_obj` : pickle dumped serialized self
-  - `/keras`: a sub directory with dumped self.model_
-  - `/history`: a sub directory with dumped self.history.history
+- If a `path` is provided: It adds self.model_ in `/keras` and self.history.history in `/history` in the zip file
+  
 
 #### load_from_serial and load_from_path
 

@@ -94,9 +94,9 @@ config_dict = my_estimator.get_config()
 ### Code design: flag manager
 
 The flag manager is a mixin class `_FlagManager`, which provides abstract
-functionality for tags and configs.
+functionality for tags and configs. From this, `BaseObject` can inherit.
 
-The methods are private, as they are used within public methods like `get_tag`,
+`_FlagManager`'s methods are private, as they are used within public methods like `get_tag`,
 and all have an argument that provides a reference for the attribute dict
 containing the flags, e.g., `_tags` or `_config`.
 
@@ -117,7 +117,9 @@ The override order for values, in decreasing priority order, is:
 2. class flag of an object, i.e., in the class rather than the object
 3. class flags set in parent classes, in reverse inheritance order
 
-#### Alternative designs considered
+### Alternative designs considered
+
+#### Composition - tag manager as object
 
 The principle "composition over inheritance" suggests to investigate whether
 the above could be more elegantly or clearly realized via composition, i.e.,
@@ -128,6 +130,22 @@ some logic acts on the level of classes, and `_get_class_flag` is a class method
 and would have to be available alreaddy in the class rather than objects.
 
 Whereas common composition patterns work on the level of objects, not classes.
+
+#### Direct addition to `BaseObject` instead of a mixin
+
+Another alternative would be adding the functionality directly to `BaseObject`,
+instead of having `BaseObject` inheriting from the `_FlagManager` mixin.
+
+I have a slight (not strong) preference against it, because:
+
+* that would increase the number of methods in `BaseObject` even more than it already hase.
+  "an object/function should do one thing and only one thing".
+  Arguably that depends on the definition of what thing `BaseObject` is,
+  but I find the "flag management" concern is better localized this way.
+* The mixin is preferable in a case where one may like to manage tags/flags in an object
+  that is not `BaseObject` descendant, although this is more of a hypothetical
+* if we find a "composition not inheritance" solution later (see above),
+  this might be easier to refactor towards that
 
 ### Code design: implementing tag and config manager
 

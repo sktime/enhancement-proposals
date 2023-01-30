@@ -279,7 +279,7 @@ It contains the following files:
 
 - `_metadata` : contains class of self, i.e., type(self)
 - `_obj` : serialized self. This class uses the default serialization (pickle).
-- Other folders, required by `load_from_file` method in the deserialization of `_obj`
+- Other files and folders, required by `load_from_file` method in the deserialization of `_obj`
 
 
 ### Code design: estimator methods

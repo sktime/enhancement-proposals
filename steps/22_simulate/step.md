@@ -147,6 +147,15 @@ my_sim = StateRegimeSim(
 
 # 3. simulating
 my_sim.simulate(at=50, n_instances=10)
+
+# as usual, parameters are inspectable via get_params
+my_sim.get_params()
+# results in dict with keys
+# "state"
+# "state__n_states"
+# "state_conditional
+# "state_conditional__1__param1
+# and so on
 ```
 
 #### User journey design: simulating from a forecaster

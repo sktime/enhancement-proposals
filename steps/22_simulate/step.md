@@ -49,6 +49,7 @@ We outline user journey designs for:
 
 * simulating one time series
 * simulating a batch/panel of time series
+* composing simulators and simulating from them
 * using a forecaster with a `simulate` method 
 
 #### User journey design: simulating one time series
@@ -107,6 +108,46 @@ y_panel = my_sim.simulate(n_instance=10)
 `y_panel` is now a collection of time series, of `Panel` scitype, with 10 instances, and an extra instance index (integer with 0 .. 9).
 
 Simulation of multiple instances is i.i.d., from the same simulation process.
+
+#### User journey design: composing simulators
+
+With simulators being objects, it becomes possible to combine simulators:
+
+```python
+# 1. create simulators
+my_trend = TrendSimulator(params)
+my_seasonal = SeasonalSimulator(params2)
+
+# 2. composing
+my_sim = my_trend + my_seasonal
+
+# 3. simulating
+my_sim.simulate(at=50, n_instances=10)
+# this adds samples from trend and seasonal
+```
+
+A more complex case could be switching regime models:
+
+```python
+# 1. create simulators
+my_state = StateSimulator(n_states=2, params)
+simulate_by_state = {
+  1: Simulator1(params1),
+  2: Simulator2(params2),
+}
+
+# 2. composing
+my_sim = StateRegimeSim(
+    state=my_state,
+    state_conditional=simulate_by_state,
+)
+# this defines simulator conditional on state
+# state switching is simulated by my_state
+# state conditional simulation is in state_conditional
+
+# 3. simulating
+my_sim.simulate(at=50, n_instances=10)
+```
 
 #### User journey design: simulating from a forecaster
 
@@ -180,6 +221,7 @@ y_simulator = my_arima.simulate(simulator_param=param_value)
 # 4. simulate from class
 y_sample = y_simulator(n_instances=10)
 ```
+
 
 
 ### Code design: simulator base class

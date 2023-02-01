@@ -226,3 +226,133 @@ The strategy to deal with such models would be as follows:
 1. an intermediate base class for such deep learning models (`tensorflow` based) is introduced
 2. that intermediate base class overrides `save`, `load_from_file`, `load_from_serial` with
   functionality using `keras`/`tensorflow` specific serialization
+
+
+## Implemented Solution
+
+
+#### User journey: serialize/deserialize to file
+
+```python
+from sktime import save 
+
+# 1. create model and acquire state
+vecm = VECM()
+vecm.fit(y_train, fh=fh)
+# and possibly further state change
+
+# 2. serialization to file
+file_name = "file_name"
+vecm.save(file_location)
+# creates file at current working directory
+
+# alternative: saving file in a sub-directory
+file_loc_name = "sub_dir/sub_sub_dir/file_name"
+vecm.save(file_loc_name)
+# creates file with name 'file_name' at cwd/sub_dir/sub_sub_dir/
+
+# the file is in zip format, see below
+
+# clear memory
+
+from sktime import load
+
+# 3. deserialization from in-memory object
+file_location = "sub_dir/sub_sub_dir/file_name" # without extension 
+model = load(file_location)
+
+# guarantee: model is a perfect copy of vecm at the end of 1.
+
+# 4. use of deserialized object
+model.predict(fh=fh)
+# potentially further method calls or state change
+# state change does not change state of serial object
+```
+
+### zip file 
+
+`skt` file format was proposed, `zip` was implemented
+
+All files are stored in the `zip` format, with specification as follows.
+
+It contains the following files:
+
+- `_metadata` : contains class of self, i.e., type(self)
+- `_obj` : serialized self. This class uses the default serialization (pickle).
+- Other files and folders, required by `load_from_file` method in the deserialization of `_obj`
+
+
+### Code design: estimator methods
+
+The following methods are added to `BaseObject` as abstract with a default:
+
+- saving: `save(self, path=None) -> Optional`
+
+  - `save` is an *object* method, and serializes the host object.
+
+  - `path` can be in one of the python file location specifier formats.
+
+  - If an argument is provided, a file with the given name and sub directory with given name(if) will be created, and the return is `None`.
+
+  - `self` is serialized to the file location, in `zip` format.
+
+  - If no argument is provided, an in-memory serialized object is returned from `self`.
+
+
+- loading: `load_from_serial(obj) -> BaseObject`, `load_from_path(obj) -> BaseObject`
+
+  - `load_from_serial` and `load_from_path` are *class methods* and implement default deserialization.
+
+  - `load_from_path` takes a reference to an `zip` file, `load_from_serial` takes an in-memory serialized objcet.
+
+  - The returns are the deserialized objects, newly constructed.
+
+
+The above methods, `save`, `load_from_serial`, `load_from_path` are considered abstract with a default.
+
+Deep learning implementers require custom serialization override these functions (see below).
+
+
+### Code design: load function
+
+Implemented a generic `load` method.
+
+No class specific logic is present in `load`.
+
+#### Input
+- if input is a tuple (serialized container):
+  - Contains two elements, first in-memory metadata and second the related object.
+- if serial is a string (path reference):
+  - The name of the file without the extension, for e.g: if the file is `estimator.zip`, input=`'estimator'`. 
+  - It can also represent a path, for eg: if location is `home/stored/models/estimator.zip` then input=`'home/stored/models/estimator'`.
+  - if input is a Path object (path reference):
+            `input` then points to the `.zip` file into which the
+            object was stored using class method `.save()` of an estimator.
+
+#### `load` does the following:
+
+
+* if the argument is in-memory, it unpacks the in-memory serialization to obtain the class
+  if the serialized object, and calls its `load_from_serial` to produce the deserialized object.
+* if the argument is a file location, it must point to an `zip` file.
+  In this case, `load` unpacks the file, obtains the class from the `object` file in the archive,
+  and calls its `load_from_file`, on the file,  to produce the deserialized object.
+
+
+### Dealing with deep learning models
+
+An intermediate base class for such deep learning models (`tensorflow` based) is introduced and that intermediate base class overrides `save`, `load_from_file`, `load_from_serial` with functionality using `keras`/`tensorflow` specific serialization.
+
+#### Difference in implementation 
+
+#### save
+
+- If `path=none`: It returns a tuple, with metadata of `self` at index 0 and a tuple containing pickle dumped `self`, `in_memory_model` dumped using `h5py` and pickle dumped `in_memory_history` at index 1
+- If a `path` is provided: It adds self.model_ in `/keras` and self.history.history in `/history` in the zip file
+  
+
+#### load_from_serial and load_from_path
+
+- added functionality to the original implementation, to load the dumped model and history from:
+  - nested tuple in the in-memory object
+  - sub directories `/keras` and `/history` in zip file

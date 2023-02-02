@@ -112,9 +112,17 @@ In phase 3, `BaseDistribution` and probabilistic losses are moved to `skpro`.
 
 `skpro` is rebooted with a dependency on `skbase`.
 
+Requires:
+
+* professional package structure, CI/CD - `sktime` or `skbase` can be used as template
+* live refactor, with experimental branch of `sktime` depending on `skpro`
+* dependency change over multiple release cycles, with deprecation/change management
+
+(the above is similar to refactoring `BaseObject` into `skbase`)
+
 ### Phase 4 - extend distributions
 
 * more metrics/losses, e.g., squared integral loss; survival loss
 * more distributions
-* more distribution methdos, e.g., integrated cdf, integrated survival function
+* more distribution methods, e.g., integrated cdf, integrated survival function
 * optional: additional distribution backends

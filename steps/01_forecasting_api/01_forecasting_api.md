@@ -10,7 +10,7 @@ Forecasting describes the learning task in which we want to make temporal forwar
 ### API design
 Forecasting involves a number of choices on how to fit forecasters and how to make and update forecasts. API design is about how to best map these choices onto classes and methods in Python. 
 
-With sktime, our goal is to design a uniform interface for forecasting, similar to the scikit-learn's uniform interface for tabular (or cross-sectional) prediction setting. All forecasters need to have methods for at least the following functionality: 
+With sktime, our goal is to design a uniform interface for forecasting, similar to scikit-learn's uniform interface for tabular (or cross-sectional) prediction setting. All forecasters need to have methods for at least the following functionality: 
 
 1. Model specification (constructor, hyper-parameters)
 2. Training/estimation
@@ -19,7 +19,7 @@ With sktime, our goal is to design a uniform interface for forecasting, similar 
 5. Updating
 6. Persistence (save, load) 
 
-Before looking at concrete proposals, we discuss these methods and related key concepts and questions below. 
+Before looking at concrete proposals, we discuss these methods, related key concepts and questions below. 
 
 For preliminary discussions of the API design presented here, see issue [#18](https://github.com/alan-turing-institute/sktime/issues/18). 
 
@@ -47,7 +47,7 @@ The forecasting horizon specifies the time periods (or steps or time points) whi
 
 With regard to interface design, there are three key questions:
 * When do we specify the forecasting horizon - at construction, training or prediction?
-* How do we specify the forecasting horizon, e.g. as a new object possibly as part of a full task object or simple positional or keyword arguments?
+* How do we specify the forecasting horizon, e.g. as a new object possibly, as part of a full task object or as a simple positional or keyword argument?
 * Should the interface to specify the forecasting horizon be uniform?
 
 While the first two questions are less clear, most people agree that whatever interface we choose for the forecasting horizon, it should be uniform, i.e. it should be specified and provided in the same way for all forecasters and methods.
@@ -60,7 +60,7 @@ fh = np.array([3, 4, 5])
 fh = np.arange(1, 10)
 ```
 
-Simply specifying the forecasting horizon as the number of steps ahead is not enough, as some forecasters may train a separate models for each step, so it is important to know exactly which time periods we want to forecast.
+Simply specifying the forecasting horizon as the number of steps ahead is not enough, as some forecasters may train a separate model for each step, so it is important to know exactly which time periods we want to forecast.
 
 For *in-sample predictions*, please see the [section below](#Insample-predictions).
 

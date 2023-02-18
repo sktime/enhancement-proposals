@@ -10,7 +10,7 @@ We intend STEPs to be the primary mechanisms for proposing major changes, for co
 
 For the general design principles and patterns followed in sktime, we refer to our paper: [Designing ML Toolboxes: Concepts, Principles and Patterns](https://arxiv.org/abs/2101.04938).
 
-STEPS are also described in our [governance document](https://www.sktime.org/en/latest/governance.html).
+STEPS are also described in our [governance document](https://www.sktime.net/en/latest/governance.html).
 
 ## Submitting a STEP
 

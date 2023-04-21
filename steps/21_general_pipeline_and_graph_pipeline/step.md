@@ -74,20 +74,20 @@ p.method(more_data)
       Since the pipeline steps are pipeline parameters. 
     * Additional parameters as store paths for intermediate results (at least pyWATTS uses such information.)
 * **add_step** method.
-  * The `add_step` method adds a transformer/forecaster to the pipeline.
+  * The `add_step` method adds a transformer/forecaster to the pipeline. Thereby, it mutates the state of the pipeline.
+    Under the hood, the graph structure is maintained by having a Step/StepInformation object that contains the added
+    transformer/forecaster together with the links to its' predecessors.
     It requires the following arguments:
-    * The transformer/forecaster:
-    * A list of predessors:
+    * The transformer/forecaster which should be add to the pipeline.
+    * The name that this step should have within the pipeline.
+    * A list of predessors, identified by the keys. 
     * Further kwargs, that can specify the behaviour of the transformer/forecaster in the pipeline.
+* **fit** method
+  * Fits everything within the pipeline.
+* **method** stands for every method that is possible on the pipeline. The possible methods of the pipeline a determined by its last step.
 
-The general pipeline needs to be constructed with the steps and additional stuff as input.
-Afterwards the fit method can be called with data and neeeded params.
-Finally, a method can be called. The allowed methods are determined by the last step of the pipeline.
-* [ ] Describe how the stuff here is working.
-* [ ] What does add_step make
-  * state mutation of the pipeline
-  * graph resolution how to specify predecessors etc.
-  * What is with existing dunders from sktime?
+The pipeline object is created, and then with `add_step` the transformer/forecaster/.. are added to the pipeline.
+Afterwards, fit can be called, and then for example `predict` if the last step in the pipeline has a `predict` method.
 
 
 #### Comparison to existing solutions
@@ -118,6 +118,7 @@ The proposed solution relies on the PR [sktime 4321](https://github.com/sktime/s
 * [ ] Structure of the proposed pipeline class (public methods, parameters, covered functionality)
 * [ ] Add a add_step method in the code below. Change to more pseudo-code instead of correct python code.
 ```python
+
 class Pipeline(BaseEstimator):
 
     def __init__(self, steps):
@@ -173,6 +174,10 @@ class Pipeline(BaseEstimator):
         required_kwargs = self._check_validity(self.steps[-1], "_predict", **kwargs)
         f = self.steps[-1]
         return f.predict(**required_kwargs)
+    
+    def add_step(self, skobject, name, edges, **kwargs):
+        # TODO Fill out
+        pass
 
     # All methods needs to be implemented.
 ```
@@ -189,20 +194,62 @@ class Pipeline(BaseEstimator):
 * The `_check_validity` method checks for a specific estimator/transformer if the method is available and if all required parameters are in kwargs.
   Afterwards, it returns a dict containing all required parameters.
 
-#### Further Supportive Methods and their code!
+#### Further Supportive Classes/Methods and their code
 * [ ] List and Structure of supportive classes as Steps, StepInformation, etc.
 
-#### How is determined if a method is allowed to be called on the pipeline. I.e. what is the type of the pipeline.
-If a method is called on the pipeline, the pipeline checks if the method is available. If not it will aise
-an NotImplementException or something similar. 
-* [ ] Which functions are available and what is the type of the pipeline
 
-#### How are the allowed parameters identified:
-If the method is available then pipeline uses inspection to determine which arguments has to be passed to the method of
-the pipeline step. Afterwards it is checked if these parameters are available and then the method on the step is called.
+* **Step** class
+
+
+#### How is determined if a method is allowed to be called on the pipeline. I.e. what is the type of the pipeline.
+If a method is called on the pipeline, the pipeline checks if the method is available. If not it will raise
+an NotImplementException or something similar. 
+The allowed methods are specified by the type of the last element of the pipeline. I.e., if the last element is a transformer,
+`transform` is allowed. If the last element is a forecaster, then `predict`, `predict_quantile`, ... are allowed.  
+
+Under the hood, this is determined by using ducktyping as in the following code snippet.
+
+````python
+if not hasattr(last_step, method_name):
+    raise Exception(f"Method {method_name} does not exist for {last_step.__name__}")
+method = getattr(last_step, method_name)
+````
+hereby, `last_step` is the last element in the pipeline, since it determines the allowed methods. 
+Furthermore, `method_name` is the name of the method that should be called, e.g. `predict`. 
+The result of the `getattr` method is the requested method.
+
+
+To identify the allowed arguments of the method, we use inspection. 
+More specifically, first, we determine which parameters the method needs via inspection.
+Afterwards, we check if these parameter are provided to the method that is called.
+The code for this might look as follows:
+
+```python
+method_signature = inspect.signature(method).parameters
+
+for name, param in method_signature.items():
+    if name == "self":
+        continue
+    if name not in kwargs and param.default is inspect._empty and param.kind != _ParameterKind.VAR_KEYWORD:
+        raise Exception(f"Necesssary parameter {name} of method {method_name} is not provided")
+    if name in kwargs:
+        use_kwargs[name] = kwargs[name]
+```
+First, with inspect we get a dict of all arguments which the method has.
+Second, we iterate through this dict and make the following checks:
+* ignore the `self` argument
+* raise an exception if an required argument is not provided. 
+The argument is required if it's default value is empty 
+and if it is not  key word argument.
+* store the argument in a dict of the arguments `use_kwargs` that should be used with the name of the parameter as key. 
+
+The dict `use_kwargs` is then passed to the method that should be called using the double star (`**use_kwargs`).
 
 #### How is the graph represented within in the pipeline
-* [ ] Decribe Graphrepresentation
+The pipeline has a Directed Acyclic Graph (DAG) structure. DAGs are storable by backward links. 
+Thus, we have an intermediate layer (class `step`), such a step is created with each call of `add_step`.
+The step stores the transformer/estimator added by `add_step`, together with links to all predecessors.
+The pipeline itself needs to dissolve the graph structure the information which steps have no sucessors.
 
 
 ### Code Design: What will be reused

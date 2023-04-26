@@ -61,8 +61,12 @@ The user has only to import the pipeline regardless of the type of the used esti
 Taken from [Hackmd](https://hackmd.io/6PMsV6DLRIyCvwBMfKHuhw)
 ```python
 p = Pipeline(stuff)
-p.add_step(...)
-...
+p.add_step(step1, "step1-name", {"x": "column1"})
+p.add_step(step2, "step2-name", {"x": "column1"})
+p.add_step(step3, "step3-name", {"x": "step1-name",
+                                 "y": "step2-name"})
+
+... 
 p.add_step(...)
 p.fit(data, params)
 p.method(more_data)
@@ -80,7 +84,7 @@ p.method(more_data)
     It requires the following arguments:
     * The transformer/forecaster which should be add to the pipeline.
     * The name that this step should have within the pipeline.
-    * A list of predessors, identified by the keys. 
+    * A list of predessors, identified by the keys. Note column names of the input dataset can also be used as keys.
     * Further kwargs, that can specify the behaviour of the transformer/forecaster in the pipeline.
 * **fit** method
   * Fits everything within the pipeline.
@@ -92,7 +96,29 @@ Afterwards, fit can be called, and then for example `predict` if the last step i
 
 #### Comparison to existing solutions
 ##### Compare to make_pipeline
+
+```python
+p = make_pipeline(steps)
+p.fit(data, params)
+p.method(more_data)
+```
+However, such a strucure as in the example with `add_step` is not possible.
+
 ##### Compare to dunders
+
+```python
+p = Pipeline(stuff)
+step1 = step1()(x=p["column1"])
+step2 = step2()(x=p["column1"])
+step3 = step3()(x=step1, y=step2)
+... 
+
+p.fit(data, params)
+p.method(more_data)
+```
+
+This example (as used in pyWATTS) is very similiar to the proposed solution. 
+However, this solution requires the implementation of the `__call__` dunder in the base class.
 
 ## Code design
 
@@ -107,79 +133,35 @@ A prototype that describes the general idea is provided in the following PR:
 * [ ] Exemplarily flowchart, how the pipeline works
   * [ ] Adding steps
   * [ ] Fitting/Transforming/Predicting the pipeline (Resolution Order)
-    * How to determine whether transformers are pre or post. 
-    * How to determine transformer outputs “skipping” the forecaster, e.g., a lagger
-* [ ] Type inference (is the pipeline a transformer or a forecaster?)
 
 The general pipeline implements each fit/predict/transform method that is available in sktime. See example from above.
 
 ### Code Design: Graphpipeline
-The proposed solution relies on the PR [sktime 4321](https://github.com/sktime/sktime/pull/4341). It may look as follows
-* [ ] Structure of the proposed pipeline class (public methods, parameters, covered functionality)
-* [ ] Add a add_step method in the code below. Change to more pseudo-code instead of correct python code.
+The proposed solution relies on the PR [sktime 4321](https://github.com/sktime/sktime/pull/4341), in this PR also 
+more details of the code are available. It may look as follows
+
 ```python
 
 class Pipeline(BaseEstimator):
 
     def __init__(self, steps):
-        super().__init__()
-        self.steps =  steps
+        # Initialise the method
 
     @staticmethod
     def _check_validity(step, method_name, **kwargs):
-        use_kwargs = {}
-        if not hasattr(step, method_name):
-            raise Exception(f"Method {method_name} does not exist for {step.__name__}")
-        method = getattr(step, method_name)
-        method_signature = inspect.signature(method).parameters
-
-        for name, param in method_signature.items():
-            if name == "self":
-                continue
-            if name not in kwargs and param.default is inspect._empty and param.kind != _ParameterKind.VAR_KEYWORD:
-                raise Exception(f"Necesssary parameter {name} of method {method_name} is not provided")
-            if name in kwargs:
-                use_kwargs[name] = kwargs[name]
-        return use_kwargs
-
+        # Checks if the method_name is allowed to call on the pipeline.
+        # Thus, it uses ducktyping
+        # Returns the all kwargs that are provided to the pipeline and needed by method_name.
+      
     def fit(self, **kwargs):
-        kwargs = deepcopy(kwargs)
-        for transformer in self.steps[:-1]:
-            required_kwargs = self._check_validity(transformer, "fit_transform", **kwargs)
-            X = transformer.fit_transform(**required_kwargs)
-            kwargs["X"] = X
-        # fit forecaster
-        required_kwargs = self._check_validity(self.steps[-1], "_fit", **kwargs)
-        f = self.steps[-1]
-        f.fit(**required_kwargs)
-        return self
-
+      # Fits the pipeline  
+      
     def transform(self, *args, **kwargs):
-        kwargs = deepcopy(kwargs)
-        for transformer in self.steps[:-1]:
-            required_kwargs = self._check_validity(transformer, "transform", **kwargs)
-            X = transformer.transform(**required_kwargs)
-            kwargs["X"] = X
-        required_kwargs = self._check_validity(self.steps[-1], "transform", **kwargs)
-        f = self.steps[-1]
-        return f.transform(**required_kwargs)
+        # Implementation of transform, such methods also are required for predict, ...
 
-
-    def predict(self, *args, **kwargs):
-        kwargs = deepcopy(kwargs)
-        for transformer in self.steps[:-1]:
-            required_kwargs = self._check_validity(transformer, "transform", **kwargs)
-            X = transformer.transform(**required_kwargs)
-            kwargs["X"] = X
-        required_kwargs = self._check_validity(self.steps[-1], "_predict", **kwargs)
-        f = self.steps[-1]
-        return f.predict(**required_kwargs)
-    
     def add_step(self, skobject, name, edges, **kwargs):
-        # TODO Fill out
-        pass
+        # Adds a step to the pipeline and store the step informations
 
-    # All methods needs to be implemented.
 ```
 #### Explanations of the code:
 * The `__init__` gets the steps as argument, which are just assigned to the parameter `self.steps`.
@@ -193,12 +175,27 @@ class Pipeline(BaseEstimator):
   * Finally, the desired method of the last step is called
 * The `_check_validity` method checks for a specific estimator/transformer if the method is available and if all required parameters are in kwargs.
   Afterwards, it returns a dict containing all required parameters.
+* The `add_step` methods adds a step to the pipeline. Therefore, it
+  * creates an internal Step/StepInformation object that contains all information about the
+    predecessors.
+  * Maintaince the list of steps/step_informations in the pipeline
 
 #### Further Supportive Classes/Methods and their code
-* [ ] List and Structure of supportive classes as Steps, StepInformation, etc.
-
 
 * **Step** class
+  * Intermediate layer of the graphpipeline, which wraps a forecaster/transformer/... 
+    I.e., what are predesessors etc.
+  * Can realise additional functionality as printing/plotting intermediate results
+  * Has a get_result method, which
+    * calls get_result method on predecessors (i.e. fetching the input of the wrapped transformer/...) 
+    * executes fit if required
+    * executes the predict/transform/... call on the wrapped transformer/...
+    * stores the result of predict/transform... in a buffer
+    * returns the result of predict/transform...
+    
+
+* **StepInformation** class
+  * Not sure if required if we not use the `__call__` dunder.
 
 
 #### How is determined if a method is allowed to be called on the pipeline. I.e. what is the type of the pipeline.
@@ -251,14 +248,36 @@ Thus, we have an intermediate layer (class `step`), such a step is created with 
 The step stores the transformer/estimator added by `add_step`, together with links to all predecessors.
 The pipeline itself needs to dissolve the graph structure the information which steps have no sucessors.
 
+#### Resolution Order
+The correct execution order of the steps in the pipeline is determined based on an algorithm for checking if a graph is a DAG.
+I.e.
+* Call on the last step, get_result/etc., which calls get_result recurrently on its predecessors.
+* If no predessors is available, the associate step should be connected to a column, then this column from the provided data is returned.
+* Using the return value of each recurrent call of `get_result`, the step calls fit/transform/predict/... on the wraped transformer/... 
+* Returns the result of the transform/... call
+
+#### How to determine if inverse_transform needs to be executed?
+**Decision Needed Here**
+* [ ] Should we require the user to say explicitly that she/he wants to execute inverse_transform
+and that she/he needs to specify at which position (by adding the step a second time to the pipeline?)
 
 ### Code Design: What will be reused
 * skBASE
 * pyWATTS resolution order
 
 #### Interface Compatibility
-* [ ] How does the interfaces comply to sklearn/sktime
-* [ ] How can the pipeline be tested efficiently
+
+The pipeline itself inherits from skbase and is a BaseEstimator.
+Consequently, the pipeline should comply to most/all of the interfaces.
+Note, in contrast to sktime, this solution requires ducktyping (which is also widely used in sklearn).
+
+#### Testing
+* Regression tests via simple examples. The examples should have some assertions.
+These assertions would then allow to use the examples as regression tests.
+* For basic functionality, unit tests should directly be implemented. 
+
+
+* [ ] **Do we allow Mocking?**
 
 ## Comparison to current linear pipelines
 
@@ -273,12 +292,40 @@ The pipeline itself needs to dissolve the graph structure the information which 
 * Furthermore, graph pipelines cannot be realised
 
 ## Implementation plan
-* logical units
-* can be worked on separately?
+### Logical Units
+* Pipeline 
+  * Stub/Structure
+  * Fit/Transform/Predict/....
+  * Type Inference
+  * Check Validity
+  * AddStep
+* Examples
+* Step
+  * Resolution Order
+
+
+### Testing Strategy, Decision Needed!
+* TDD or partial TDD using the simple examples? 
 * tests of sub-units
   * interface compatibility
-* re-use or import of existing functionality
-* TDD or partial TDD using the simple examples
+
+### Code Dependencies
+If under the same number then we can work on it in parallel
+1. First Implementation Steps 
+* Pipeline Stub
+2. Second Implementation Steps
+* Examples -> Use this for TDD
+* Step Stub
+3. Third Implementation Steps
+* Pipeline AddStep
+* Step ResolutionOrder, ..
+* Pipeline TypeInference
+* Pipeline CheckValidity
+
+### Required Decision Regarding Development Process
+* Development branch in which we merge? (For merges in Dev Branch no PRs are required).
+* Create Draft PR for documenting the progress
+* Create Project/Milestone?
 
 ## Examples that are used for partial tdd
 * [ ] List of examples 

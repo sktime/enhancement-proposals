@@ -5,7 +5,10 @@ Contributors: @Abhay-Lejith
 ## Introduction
 
 ### Objectives 
-Allow users to pass data with categorical features to any estimator. If not supported, return an informative error message. Otherwise it should run without errors.
+Allow users to pass exog data with categorical features to any forecaster. Outcome will depend on whether the forecaster natively supports categorical or not.
+Two broadly possible outcomes:
+- error in fit saying not natively supported.
+- internally encode and fit successfully.
 
 ### Current status:
 * Non-numeric dtypes are completely blocked off in datatype checks.
@@ -13,25 +16,105 @@ Allow users to pass data with categorical features to any estimator. If not supp
 * https://github.com/sktime/sktime/pull/6490 - pr adding feature_kind metadata
 
 
-## Description of proposed designs
+### Models which support categorical natively that have been identified so far:
+- xgboost
+- lightgbm
+- catboost
+
+Note that all these will have to be used via reduction.
+
+### Sample data used in examples below
+```python
+sample_data = {
+    "target": [10,20,30,20],
+    "cat_feature":["a","b","c","b"],
+    "numeric_feature": [1,2,3,4],
+}
+sample_dataset = pd.DataFrame(data=sample_data)
+y = sample_dataset["target"]
+X = sample_dataset[["cat_feature","numeric_feature"]]
+X_train,X_test,y_train,y_test = temporal_train_test_split(y,X,0.5)
+```
+
+### Example 1: (Reduction case)
+```python
+from sktime.forecasting.compose import make_reduction
+from catboost import CatBoostRegressor
+
+regressor = CatBoostRegressor()
+forecaster = make_reduction(regressor)
+forecaster.fit(y_train,X_train)
+y_pred = forecaster.predict(X_test,fh=[1,2])
+```
+
+### Example 2:
+```python
+from sktime import XYZforecaster
+
+forecaster = XYZForecaster()
+forecaster.fit(y_train,X_train)
+y_pred = forecaster.predict(X_test,fh=[1,2])
+```
+
+## Requirements
+1. Need to know whether categorical data is present in X_train and which columns.
+2. Need to know if forecaster has native categorical support.
+3. In reduction, we need to know if model used has native categorical support.
+4. In reduction, we need to pass parameters(like `enable_categorical=True` in case of xgboost) to the model used if natively supported according to the requirements of the model.
+5. Must handle all combinations of cases
+    - estimator natively supports categorical: yes/no
+    - categorical feature specified by user: yes/no
+    - categorical present in data: yes/no
+
+    Important case is when categorical data is passed but is not natively supported.
 
 
-For each design we will have to discuss 8 combinations of cases:
-1. estimator natively supports categorical: yes/no
-2. categorical feature specified by user: yes/no
-3. categorical present in data: yes/no
+## Solutions for some of the requirements:
     
-## Specifying categorical features:
-- The reason I proposed this is in case the user wants to treat a column with numerical values as categorical. This will not be detected by feature_kind as it relies only on the dtype.
-- More on how this is tackled in each design below.
+### Requirement 1
+- https://github.com/sktime/sktime/pull/6490 - pr adding feature_kind metadata
+    
+    This pr adds a new field to metadata called feature_kind. It is a list from which we can infer the dtype of the columns present in the data. Currently a broad classification into 'float' and 'categorical' is used.
+
+    #### Sub-challenge: User may want to treat a column with numerical values as a categorical feature(Example - a column which contains ratings from 1-5)
+    
+    This information cannot be detected using the feature_kind metadata. It has to be passed by the user in some manner.
+
+    - Possible solutions:
+        - 'categorical_features' arg in model where user can specify such columns.
+        - passing this info via `set_config`.
+        - not deal with this case and expect user to convert from numerical to categorical. We can make a transformer for this purpose.
+
+### Req 2
+We will use a tag `categorical_support`(=True/False) or similar to identify whether a forecaster has native support.
+
+### Req 3
+- Set tag depending on model used in reduction.
+    - Since there are few models(3) that have been identified with native support, a hard coded method like an if/else statement to check the model could be used.
+        - Would be more difficult to extend if new estimators with native support are found.
+    - Maintain some sort of list internally in sktime, of estimators with native support and check with this.
+
+### Req 4
+- Should this be expected from the user itself since they have to initialize the model anyway?
+- Or, if we choose to pass arguments internally, then we will have to do something like this:
+```
+if model used is xgboost:
+    xgboost specific categorical specification
+else if model used is catboost:
+    catboost specific cat specification 
+else if ..... and so on
+```
+
+### Req 5 
+Discussed according to the different design options below.
+
 ---
 ---
 
+### Design 1. Allow categorical features ONLY in those forecasters which support natively. (no encoding internally)
 
-### Design 1. Allow categorical features ONLY in those estimators which support natively. (no encoding internally)
-
-- `categorical_features` parameter will be present only in estimators that support natively.
-- For estimators that do not support natively, users can make a pipeline with an encoder of their choice and use categorical variables. This is the general ml workflow, like how it's done in sklearn too.
+- `categorical_features` parameter will be present only in forecasters that support natively.
+- For forecasters that do not support natively, users can make a pipeline with an encoder of their choice and use categorical variables.
     
     #### How tag is going to be used
     - in datatype checks :
@@ -43,27 +126,22 @@ For each design we will have to discuss 8 combinations of cases:
 
 - In this case `categorical feature` will not be a parameter in models that do not support. So (NO,YES,_) is not possible.    
 
-| **Estimator supports categorical natively** | **Cat feature specified by user** | **Cat feature present in data** | **Outcome** | 
+| **Estimator supports categorical natively** | **Cat feature specified by user in fit** | **Cat feature present in data** | **Outcome** | 
 |:-----------------:|:-------------------------:|:--------------:|:---------------:|
-| NO | NO | NO | normal case, proceeds as usual without error. |
-| NO | NO | YES| informative error message to user that categorical feature is not supported by the estimator |
+| NO | NO | NO | normal case, fits without error. |
+| NO | NO | YES| informative error message to user that categorical feature is not supported by the forecaster |
 | NO | YES| NO | X |
 | NO | YES| YES| X |
-| YES| NO | NO | normal case, proceeds as usual without error. |
-| YES| NO | YES| use categorical columns as detected by feature_kind and proceed. |
+| YES| NO | NO | normal case, fits without error. |
+| YES| NO | YES| use categorical columns as detected by feature_kind and proceed to fit. |
 | YES| YES| NO | informative error message that specified column was not present in data.|
-| YES| YES| YES| use categorical columns as detected by feature_kind along with the user specified columns(union) and proceed. |
+| YES| YES| YES| use categorical columns as detected by feature_kind along with the user specified columns(union) and proceed to fit. |
 
-- in case where specified column was not found, we can also choose to ignore and continue with warning that column was not found.
-
-#### estimators that can be added:
-- xgboost, lightgbm and catboost are some models that have native support for categorical. But method of passing categorical features varies quite a lot between them (I've commented on this in umbrella issue - https://github.com/sktime/sktime/issues/6109). Making a general interface might be challenging.
-- So it might be better to interface them in separate classes inheriting from reduction forecaster class. (similar to darts lightgbm, see - https://unit8co.github.io/darts/generated_api/darts.models.forecasting.lgbm.html)
+- in case where specified column was not found, we can also choose to ignore that column and continue to fit with warning that column was not found.
 
 #### PROS:
-- No internal encoding, comparatively easier to implement.
-- No major changes to core logic.
-- Follows general ML workflow i.e if estimator does not support, then user must preprocess their data(including encoding) and then use it.
+- No need to add `categorical_feature` parameter to all models.
+
 #### CONS:
 - Less number of estimators support categorical natively.
 
@@ -71,7 +149,7 @@ For each design we will have to discuss 8 combinations of cases:
 ---
 ---
 
-### Design 2. Perform one hot encoding if not natively supported. 
+### Design 2. Perform some encoding method as default if not natively supported. 
 
 - `categorical_feature`  param will be present in all models.
 
@@ -83,28 +161,25 @@ For each design we will have to discuss 8 combinations of cases:
          continue
     ```
 
-| **Estimator supports categorical natively** | **Cat feature specified by user** | **Cat feature present in data** | **Outcome** | 
+| **Estimator supports categorical natively** | **Cat feature specified by user in fit** | **Cat feature present in data** | **Outcome** | 
 |:-----------------:|:-------------------------:|:--------------:|:---------------:|
-| NO | NO | NO | normal case, proceeds as usual without error. |
+| NO | NO | NO | normal case, fits without error. |
 | NO | NO | YES| encode features internally as detected by feature_kind and continue.
 | NO | YES| NO | error that specified column was not present in data |
-| NO | YES| YES| use categorical features detected by feature kind and those specified by user(union) and proceed to encode |
-| YES| NO | NO | normal case, proceeds without error.|
-| YES| NO | YES| use categorical features detected by feature_kind and proceed|
+| NO | YES| YES| use categorical features detected by feature kind and those specified by user(union) and proceed to encode and then fit |
+| YES| NO | NO | normal case, fits without error.|
+| YES| NO | YES| use categorical features detected by feature_kind and fit|
 | YES| YES| NO | error that specified column was not present in data|
 | YES| YES| YES| use categorical features detected by feature kind and those specified by user(union) and proceed|
 
-#### Estimators that will be affected:
-- all estimators that take exog input
+- in case where specified column was not found, we can also choose to ignore that column and continue to fit with warning that column was not found.
 
 #### PROS:
-- Most estimators will be able to accept categorical inputs.
-- If user only wants to one-hot encode, this design is easier as user does not have to do anything extra.(encoding is done internally)
+- All forecasters will be able to accept categorical inputs.
 
 #### CONS:
-- Will be more complex to implement, may require significant changes to core logic (for internal encoding).
 - adding `cat_features` parameter to all estimators is not desired
-- Not flexible in choice of encoding (label,one-hot,etc). If user wants different types, will have to resort to externallly doing it anyway.
+- Not flexible in choice of encoding (label,one-hot,etc) if we fix a default. If user wants different types, will have to resort to externallly doing it anyway.
 
 ---
 ---
@@ -116,28 +191,33 @@ Instead, user is required to convert the required numerical features to categori
 
 | **Estimator supports categorical natively** | **Cat feature present in data** |  **Outcome**  |
 |:-------------------------------------------:|:-------------------------------:|:---------------:|
-| NO |  NO | normal case, proceeds as usual without error. |
-| NO |  YES| encode features internally as detected by feature_kind and continue.
-| YES|  NO | normal case, proceeds without error.|
-| YES| YES| use categorical features detected by feature_kind and proceed|
+| NO |  NO | normal case, fits without error. |
+| NO |  YES| encode features internally as detected by feature_kind and continue to fit.
+| YES|  NO | normal case, fits without error.|
+| YES| YES| use categorical features detected by feature_kind and fit|
 
 #### PROS:
-- Most estimators will be able to accept categorical inputs.
-- If user only wants to one-hot encode, this design is easier as user does not have to do anything extra.(encoding is done internally)
-- Removes need for adding extra parameter to all models.
+- All forecasters will be able to accept categorical inputs.
 
 #### CONS:
-- Will be more complex to implement, may require significant changes to core logic (for internal encoding).
-- Not flexible in choice of encoding (label,one-hot,etc). If user wants different types, will have to resort to externally doing it anyway.
+- Not flexible in choice of encoding (label,one-hot,etc) if we fix a default. If user wants different types, will have to resort to externallly doing it anyway.
 - Removing parameter comes at cost of requiring user to convert numerical to categorical themselves. 
     - If this is the case then user can just convert categorical to numerical and use the data. Providing internal encoding is kind of redundant.
 
 ---
 ---
+### Design 4.
+- Same as Design 2 or 3 but without fixing a default encoder.
+    - How much choice do we want to give user?
+        - Which encoders to use?
+        - Which columns to encode?
+        - Which encoder to use on which column?
+    - This is basically trying to provide the entire encoding ecosystem internally.
+    - Will be very difficult to implement. Where will the user specify all this data? 
 
-## Personal preference - 
-- Design 1: 
-- I see no need for the encoding to be done internally. Preprocessing data is a regular part of the ml workflow and encoding categorical features is part of it. If users want to use cat features in estimators that do not support natively, then they can encode it themselves externally or in pipelines and then pass it to the estimator. This is how it is everywhere else, including sklearn.
-- Additionally, even if we are providing internal encoding, it is not flexible and provides only a single option to the user. If user wants to use different encoding on diff columns, will have to resort to doing it externally anyway. 
+- I don't think this is a good idea.
+
+---
+---
 
 

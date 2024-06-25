@@ -122,6 +122,8 @@ If the `set_output` function was not used, then we skip this code block and move
 
 Similar adaptations can be followed inside `predict_quantiles`, `predict_var` and `predict_proba`. We will first call `._check_X` and convert input X if necessary into the correct mtype. Then, if the user specified a new transform container through `set_output`, we verify that the transform value passed in from the user is a valid key, and then call the convert output function to transform.
 
+To summarize, all `predict_` functions inside `regression._base.py` will have the new code marked in * to facilitate the checking, convert of the output data container. The actual conversion method `create_container` will depend on the adapter specified as part of the `transform` specification done by the user. This method could be potentially be implemented as part of https://github.com/sktime/skpro/pull/392
+
 ### Potential Conversion combinations
 
 ###### Pandas to Polars

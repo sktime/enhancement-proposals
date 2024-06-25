@@ -89,8 +89,8 @@ Lets consider the current inplementation of `predict_interval` seen inside `regr
             Upper/lower interval end are equivalent to
             quantile predictions at alpha = 0.5 - c/2, 0.5 + c/2 for c in coverage.
 
-	    For pl.DataFrame: Column is a single levels following similar convention to pd.DataFrame
-	    There are three values seperated by underscores. The first value indicates the
+	    For pl.DataFrame: Column is in single level following similar convention to pd.DataFrame
+	    There are three values seperated by underscores "_". The first value indicates the
 	    variable name from ``y`` in fit, the second value is the coverage fractions 
 	    from which the intervals were computed, and the third value is lower/upper for interval
 	    end
@@ -122,7 +122,7 @@ If the `set_output` function was not used, then we skip this code block and move
 
 Similar adaptations can be followed inside `predict_quantiles`, `predict_var` and `predict_proba`. We will first call `._check_X` and convert input X if necessary into the correct mtype. Then, if the user specified a new transform container through `set_output`, we verify that the transform value passed in from the user is a valid key, and then call the convert output function to transform.
 
-Potential Conversion combinations
+### Potential Conversion combinations
 
 ###### Pandas to Polars
 
@@ -190,11 +190,59 @@ Proposed column formatting of `predict_quantiles` dataframes in polars:
 
 If a `predict_*` function does not require any melting of columns, then we convert the pandas DataFrame to a polars DataFrame as normal
 
+As per discussion idea 0: If a user wishes to include the index, custom functions can be written to pass in the pandas index. in `skpro`, we will currently assume/limit the index to be single level indices. Then if a user wishes to convert the `predict` output into a polars DataFrame, it will be shown as:
+
+```python
+┌───────────┬────────────┐
+│ __index__ ┆ target     │
+│ ---       ┆ ---        │
+│ i64       ┆ f64        │
+╞═══════════╪════════════╡
+│ 4         ┆ 121.545815 │
+│ 63        ┆ 77.2909    │
+│ 10        ┆ 74.845273  │
+│ 0         ┆ 231.852453 │
+│ 35        ┆ 140.783099 │
+│ …         ┆ …          │
+│ 39        ┆ 149.267228 │
+│ 40        ┆ 115.727004 │
+│ 16        ┆ 252.940486 │
+│ 44        ┆ 251.146038 │
+│ 45        ┆ 137.555421 │
+└───────────┴────────────┘
+```
+
+and for frames that require melting:
+
+```python
+┌───────────────┬────────────────────────┬────────────────────────┐
+│ ____index____ ┆ __target__0.9__lower__ ┆ __target__0.9__upper__ │
+│ ---           ┆ ---                    ┆ ---                    │
+│ i64           ┆ f64                    ┆ f64                    │
+╞═══════════════╪════════════════════════╪════════════════════════╡
+│ 4             ┆ 66.772658              ┆ 176.318973             │
+│ 63            ┆ 22.517743              ┆ 132.064058             │
+│ 10            ┆ 20.072116              ┆ 129.618431             │
+│ 0             ┆ 177.079295             ┆ 286.62561              │
+│ 35            ┆ 86.009941              ┆ 195.556256             │
+│ …             ┆ …                      ┆ …                      │
+│ 39            ┆ 94.49407               ┆ 204.040385             │
+│ 40            ┆ 60.953847              ┆ 170.500162             │
+│ 16            ┆ 198.167328             ┆ 307.713643             │
+│ 44            ┆ 196.372881             ┆ 305.919196             │
+│ 45            ┆ 82.782263              ┆ 192.328578             │
+└───────────────┴────────────────────────┴────────────────────────┘
+```
+
 ###### Polars to Pandas
 
 Requires a conversion during the input check from polars to pandas
 
-###### Polars to Polars
+Question 3.1) is this already handled? in the scenario where a polars dataframe is passed and `skpro` automatically converts it into a pandas DataFrame to calculate the predictions?
+
+Question 3.2) What should we do with the `predict` function. Currently it automatically converts whatever is passed into the `predict` function back into the mtype that was seen in fit. Do we need to refactor this as well?
+
+###### Polars to Polars #TODO
 
 Requires a round trip conversion from polars input to pandas input to compute the predictions, then back to a polars output via `create_container`
 

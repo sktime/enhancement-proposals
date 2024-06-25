@@ -190,7 +190,27 @@ Proposed column formatting of `predict_quantiles` dataframes in polars:
 └──────────────────┴─────────────────┴──────────────────┘
 ```
 
-If a `predict_*` function does not require any melting of columns, then we convert the pandas DataFrame to a polars DataFrame as normal
+If a `predict_*` function does not require any melting of columns, then we convert the pandas DataFrame to a polars DataFrame as normal. As an example, consider `predict_var`
+
+```python
+┌─────────────┐
+│ target      │
+│ ---         │
+│ f64         │
+╞═════════════╡
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+│ …           │
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+│ 1108.871039 │
+└─────────────┘
+```
 
 As per discussion idea 0: If a user wishes to include the index, custom functions can be written to pass in the pandas index. in `skpro`, we will currently assume/limit the index to be single level indices. Then if a user wishes to convert the `predict` output into a polars DataFrame, it will be shown as:
 

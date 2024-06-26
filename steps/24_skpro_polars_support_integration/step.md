@@ -110,15 +110,16 @@ Lets consider the current inplementation of `predict_interval` seen inside `regr
 	*valid, output_config = check_transform_config(self)
 	*if valid:
 		*transform_adapter = output_config["dense"]
-		*pred_int = create_container(transform_adapter, pred_int)
+		*adapter = get_config_adapter(transform_adapter)
+		*pred_int = adapter.create_container(transform_adapter, pred_int)
 
         return pred_int
 
 ```
 
-We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform", and then select the correct adapter from the adapters module. Finally, we use the create container function to create the dataframe in the container specified in `set_output`.
+We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform". Once we have a valid output container from the user, we locate the corresponding adapter class using the function `get_config_adapter` and select the correct adapter class from the adapters module (this can be implemented as part of https://github.com/sktime/skpro/pull/392). Finally, we use the adapter's specific create container function to create the dataframe in the container specified in `set_output`.
 
-If the `set_output` function was not used, then we skip this code block and move straight to return the prediction dataframe.
+If the `set_output` function was not used (i,e valid is False), then we skip this code block and move straight to return the prediction dataframe.
 
 Similar adaptations can be followed inside `predict_quantiles`, `predict_var` and `predict_proba`. We will first call `._check_X` and convert input X if necessary into the correct mtype. Then, if the user specified a new transform container through `set_output`, we verify that the transform value passed in from the user is a valid key, and then call the convert output function to transform.
 

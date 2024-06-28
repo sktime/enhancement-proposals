@@ -1,123 +1,140 @@
-# Enhancement Proposal: Design of a `BayesianEstimator` Class for `sktime` and `skpro`
+# BayesianEstimator Class for sktime and skpro
 
-Contributors: [meraldoantonio]
+## 1. Introduction
 
-## Introduction
-This proposal outlines the design for a new `BayesianEstimator` class to be integrated into `sktime` and `skpro`. 
+This proposal outlines the design for a new `BayesianEstimator` class to be integrated into `sktime` and `skpro`. The class aims to provide a flexible and robust framework for Bayesian estimation in continuous tabular regression, while ensuring compatibility with existing `sktime` and `skpro` interfaces.
 
-## Contents
-[table of contents]
+## 2. Problem Statement
 
-## Problem statement
-Bayesian estimators are unique because they integrate prior knowledge through prior distributions and update this knowledge based on observed data to form posterior distributions. To accommodate the distinctive workflow of Bayesian estimators, we propose designing a new `BayesianEstimator` class. This class aims to offer robust and flexible methods for prior specification, model specification, and visualization of both prior and posterior distributions, among other unique Bayesian functionalities, while still ensuring compatibility with the existing `sktime` and `skpro` `fit`/`predict` frameworks. 
+Bayesian estimators integrate prior knowledge through prior distributions and update this knowledge based on observed data to form posterior distributions. The proposed `BayesianEstimator` class will accommodate this unique workflow while offering methods for prior specification, model building, posterior inference, and visualization.
 
-Initially, the focus will be on continuous tabular regression.
+## 3. Key Workflow Elements
 
-## Special Aspects and Requirements of Bayesian Estimators
+Here are the key elements are that every Bayesian model needs to support:
+1. Specification of prior distributions
+2. Retrieval and inspection of prior distributions
+3. Model fitting (Bayesian inference)
+4. Retrieval and inspection of posterior distributions
+5. Prediction using the posterior distribution
+6. Bayesian update of an already fitted model
+7. Visualization and diagnostics
 
-### Prior Specification
-- **Methods for Prior Specification**: The estimator should allow users to specify priors for each parameter explicitly. This can be done through methods that accept common prior distributions (e.g., Normal, Beta, Gamma) or custom user-defined distributions.
-- **Hyperparameter Tuning**: Functionality to tune hyperparameters of priors through cross-validation or other methods.
 
-### Model Specification
-- **Model Building**: Support for defining Bayesian models, including specifying likelihood functions and linking them with priors.
-- **Modular Design**: The class should be modular to support various Bayesian paradigms (e.g., Conjugate Bayesian analysis, MCMC, Variational Inference).
+## 4. Design Decisions
+1. Proliferation of methods should be avoided, all other things being equal.
+2. Unified interfaces that are easy to comply with are better than those that are difficult to follow, and that´s better than non-unified
 
-### Posterior Inference
-- **Inference Methods**: Implement methods for obtaining posterior distributions using MCMC (e.g., Metropolis-Hastings, Gibbs Sampling) or Variational Inference.
-- **Posterior Summarization**: Methods to summarize posterior distributions (mean, median, credible intervals).
+From this, some slight preferences:
+- mapping priors on __init__, and posteriors on `get_fitted_params`
+- unification: single prior param argument and `posterior_` fitted param
+- that means, we need a `BaseObject` child class for priors/posteriors; this could be a `BaseDistribution` representing multiple, potentially associated random variables?
 
-### Visualization
-- **Prior and Posterior Visualization**: Methods to visualize prior and posterior distributions, including density plots, trace plots for MCMC diagnostics, and convergence diagnostics.
-- **Model Flow**: Methods to visualize the model structure, similar to Graphviz visualizations of PyMC models. This will help users understand the flow of the model and how priors, likelihoods, and posteriors interact within the Bayesian framework.
+## 5. Class Structure 
+Here is a WIP prototypical implementation that fulfills the above requirements.
 
-## Design Considerations
-
-### Compatibility with `sktime` and `skpro`
-- **Orthogonal to Model Classes**: The Bayesian Estimator class should be designed to be orthogonal to existing model classes in `sktime` and `skpro`. This means it can be used alongside current models without modification but adds Bayesian inference capabilities.
-
-### Extensibility
-- **Extensible Framework**: Design the class to be easily extensible to accommodate future Bayesian paradigms and methodologies.
-- **Custom Models and Priors**: Allow users to define custom models and priors that can be easily integrated into the Bayesian Estimator framework.
-
-## Detailed description of design and implementation of proposed solution 
-
-(WIP)
 ```python
 from skpro.regression.base import BaseProbaRegressor
-import numpy as np
-import matplotlib.pyplot as plt
+from skpro.base import BaseObject
 
-# todo: change class name and write docstring
+class BaseDistribution(BaseObject):
+    """Representation of one or more potentially associated random variables/distributions."""
+    
+    def __init__(self, distributions):
+        self.distributions = distributions
+    
+    def plot(self):
+        # Implementation for plotting the distribution(s)
+        pass
+    
+    def sample(self, n_samples):
+        # Implementation for sampling from the distribution(s)
+        pass
+    
+    def summary(self):
+        # Implementation for summarizing the distribution(s)
+        pass
+
 class BayesianEstimator(BaseProbaRegressor):
-    """Bayesian probabilistic supervised regressor.
+    """Bayesian probabilistic supervised regressor."""
 
-    Custom Bayesian regressor that incorporates prior knowledge and updates it with observed data to form posterior distributions.
-
-    Parameters
-    ----------
-    priors : dict
-        A dictionary of prior distributions for the model parameters.
-    """
-
-
-    def __init__(self, priors=None):
-        self.priors = priors
-        self.posterior = None
+    def __init__(self, prior=None):
+        self.prior = prior
         super().__init__()
 
-    def set_priors(self, priors):
-        """Set prior distributions for the model parameters."""
-        self.priors = priors
-
     def _fit(self, X, y):
-        """Fit the Bayesian model to the data."""
-        self.posterior = self._perform_bayesian_inference(X, y)
+        self._posterior = self._perform_bayesian_inference(X, y)
         return self
 
     def _predict_proba(self, X):
-        """Make predictions using the posterior predictive distribution."""
         return self._predict_from_posterior(X)
 
-    def summarize_posterior(self):
-        """Summarize the posterior distributions of the parameters."""
-        return self._summarize_posterior()
+    def get_fitted_params(self, deep=True):
+        return {"posterior_": self._posterior}
 
-    def plot_prior(self):
-        """Visualize the prior distributions."""
-        self._plot_distributions(self.priors, title="Prior Distributions")
+    def update(self, X, y):
+        self._posterior = self._perform_bayesian_update(X, y)
+        return self
 
-    def plot_posterior(self):
-        """Visualize the posterior distributions."""
-        self._plot_distributions(self.posterior, title="Posterior Distributions")
+    # Additional methods for visualization, diagnostics, etc.
+```
+## 6. Class Structure 
+### 6.1 Prior Specification
+- Use a single `prior` parameter in `__init__` for passing priors.
+- The `prior` should be an instance of `BaseDistribution`.
+- Allow specification of common prior distributions (e.g., Normal, Beta, Gamma) and custom user-defined distributions.
 
-    def plot_trace(self):
-        """Plot trace for MCMC diagnostics."""
-        pass
+### 6.2 Posterior Retrieval
+- Use `get_fitted_params` for retrieving posteriors, returning a single `posterior_` parameter.
 
-    def _perform_bayesian_inference(self, X, y):
-        """Perform Bayesian inference to obtain the posterior distribution."""
-        pass
+### 6.3 Bayesian Update
+- Implement an `update` method for Bayesian updating of an already fitted model.
 
-    def _predict_from_posterior(self, X):
-        """Generate predictions from the posterior distribution."""
-        pass
+### 6.4 Distribution Representation
+- Introduce a `BaseDistribution` class to represent both priors and posteriors.
 
-    def _summarize_posterior(self):
-        """Summarize posterior distributions."""
-        pass
+### 6.5 Visualization and Diagnostics
+- Implement common diagnostic plots as methods of `BayesianEstimator`.
+- Leverage the `plot` method of `BaseDistribution` for distribution-specific visualizations.
 
-    def _plot_distributions(self, distributions, title):
-        """Plot distributions (prior or posterior)."""
-        pass
+## 7. Additional Considerations
 
-    def visualize_model_flow(self):
-        """Visualize the model flow using Graphviz."""
-        pass
+### 7.1 Model Specification
+- Support defining Bayesian models, including specifying likelihood functions and linking them with priors.
+- Design for modularity to support various Bayesian paradigms (e.g., Conjugate Bayesian analysis, MCMC, Variational Inference).
 
-    @classmethod
-    def get_test_params(cls, parameter_set="default"):
-        """Return testing parameter settings for the estimator."""
-        params = {"priors": {"param1": np.random.normal(size=1000), "param2": np.random.normal(size=1000)}}
-        return params
+### 7.2 Inference Methods
+- Implement methods for obtaining posterior distributions using MCMC (e.g., Metropolis-Hastings, Gibbs Sampling) or Variational Inference.
+- Consider implementing different inference methods as strategy objects.
+
+### 7.3 Hyperparameter Tuning
+- Implement methods for tuning hyperparameters of priors, possibly using cross-validation.
+
+### 7.4 Extensibility
+- Design the `BaseDistribution` and `BayesianEstimator` classes to be easily subclassed for specific Bayesian paradigms or custom models.
+- Allow users to define custom models and priors that can be easily integrated into the framework.
+
+### 7.5 Integration with skpro Distributions
+- Consider how to integrate or interoperate with existing skpro distribution classes.
+- Possibly implement conversion methods between `BaseDistribution` and skpro distributions.
+
+### 7.6 Compatibility with sktime and skpro
+- Design the class to be orthogonal to existing model classes in `sktime` and `skpro`.
+
+## 8. Visualization and Diagnostics
+
+Implement methods for:
+1. Visualizing prior and posterior distributions
+2. Trace plots for MCMC diagnostics
+3. Autocorrelation plots
+4. Prior vs Posterior plots
+5. Posterior predictive check plots
+6. Pair plots for parameter relationships
+7. Model flow visualization (similar to Graphviz visualizations of PyMC models)
+
+## 9. Next Steps
+
+1. Implement the `BaseDistribution` class with basic functionality.
+2. Refine the `BayesianEstimator` class based on this proposal.
+3. Implement a concrete example of a simple Bayesian model (e.g., Bayesian linear regression) using this framework.
+4. Develop diagnostic and visualization methods.
 

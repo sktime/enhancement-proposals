@@ -109,14 +109,14 @@ Lets consider the current inplementation of `predict_interval` seen inside `regr
 	*valid, output_config = check_transform_config(self)
 	*if valid:
 		*transform_adapter = output_config["dense"]
-		*adapter = get_config_adapter(transform_adapter)
-		*pred_int = adapter.create_container(transform_adapter, pred_int)
+		*adapter, columns = get_config_adapter(transform_adapter, pred_int)
+		*pred_int = adapter.create_container(pred_int, columns)
 
         return pred_int
 
 ```
 
-We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform". Once we have a valid output container from the user, we locate the corresponding adapter class using the function `get_config_adapter` and select the correct adapter class from the adapters module (this can be implemented as part of https://github.com/sktime/skpro/pull/392). Finally, we use the adapter's specific create container function to create the dataframe in the container specified in `set_output`.
+We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform". Once we have a valid output container from the user, we locate the corresponding adapter class using the function `get_config_adapter` and select the correct adapter class from the adapters module (this can be implemented as part of https://github.com/sktime/skpro/pull/392). Inside `get_config_adapter` we also do any necessary conversions of the columns (and potentially index?) into appropriate format. Finally, we use the adapter's specific create container function to create the dataframe in the container specified in `set_output` with the correct column names.
 
 If the `set_output` function was not used (i,e valid is False), then we skip this code block and move straight to return the prediction dataframe.
 
@@ -334,9 +334,8 @@ class PandasAdapters():
 	PandasAdapters support conversions to ["polars_eager_table"]
 	"""
 
-	def create_container(self, X, container, columns):
+	def create_container(self, X, columns):
 		if not isinstance(X, pd.DataFrame):
-			columns = retrieve_columns(X)
 			X_out = pd.DataFrame(X, columns = columns)
 			return X_out
 
@@ -365,6 +364,8 @@ Possible values for transformation will follow `X_inner_mtype` convention, and w
 #TODO write loose methods on `get_output_config`
 
 #TODO Write Adapters for Polars or Pandas
+
+
 
 ## 9) Other Ideas/Discussion Items
 

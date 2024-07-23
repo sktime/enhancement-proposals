@@ -13,7 +13,7 @@ For preliminary discussions of the proposal presented here, see issue: [https://
 1. Problem statement
 2. Current functionality of polars inside `skpro.regression`
 3. Extending functionality of `skpro.regression` and description of proposed solution
-4. Current functionality of polars inside  `skpro.survival`
+4. Complete end to end polars support for `skpro` regressors
 5. Extending functionality of `skpro.survival` and description of proposed solution
 6. Current functionality of polars inside  `skpro.distribution`
 7. Extending functionality of `skpro.distribution` and description of proposed solution
@@ -51,7 +51,7 @@ The output of `_predict_*`  functions will return pandas Dataframes no matter th
 
 ~~Question 2.2~~: Follow up to question 2.1, should we go through every implemented regression estimator right now to see which data containers it accepts, as every interface could be different. Dummy data should be able to suffice?
 
-## 3) Extending functionality of `skpro.regression` and description of proposed solution
+## 3) Extending functionality of polars inside `skpro.regression` and description of proposed solution for output containers
 
 Lets consider the current inplementation of `predict_interval` seen inside `regression._base`. Assuming we follow section 8.2's implementation, the proposed implementation of a function like `predict_interval` could look as follows:
 
@@ -256,25 +256,36 @@ and for frames that require melting:
 └───────────────┴────────────────────────┴────────────────────────┘
 ```
 
-###### Polars to Pandas #TODO technical implementation
+###### Polars to Pandas
 
-Requires a conversion during the input check from polars to pandas. If this is not handled already in skpro, we can potentially enhance the current functionality within `_check_X` and `_convert` to check what format the input is in and then change it if necessary.
+Requires a conversion during the input check from polars to pandas. If this is not handled already in skpro, we can potentially enhance the current functionality within `_check_X` and `_convert` to check what format the input is in and then change it if necessary. Another section may be required to facilitate any code changes as this section only deals with polars output containers.
 
 ~~Question 3.1~~) is this already handled? in the scenario where a polars dataframe is passed and `skpro` automatically converts it into a pandas DataFrame to calculate the predictions?
 
 ~~Question 3.2~~) What should we do with the `predict` function. Currently it automatically converts whatever is passed into the `predict` function back into the mtype that was seen in fit. Do we need to refactor this as well?
 
-Question 3.3) Currently there is no way to allow the user to specify whether they want or do not want to pass back the index when converting from pandas to polars. The user currently only can specify what transform they want via `set_output` and there is no other parameter they can set to specify what configuration they want as the internal code handles the rest of the conversion. How should we tackle this problem?
+~~Question 3.3)~~ Currently there is no way to allow the user to specify whether they want or do not want to pass back the index when converting from pandas to polars. The user currently only can specify what transform they want via `set_output` and there is no other parameter they can set to specify what configuration they want as the internal code handles the rest of the conversion. How should we tackle this problem?
 
-Question 3.4) Is there a way to check via the tags or configs as to which data container the interface is developed in regards to the private `_predict_*` methods? As an example, the `GLMRegressor` has tag 'coded_in_pandas' so we know that all the private `_predict_*` functions are written using pandas
+~~Question 3.4)~~ Is there a way to check via the tags or configs as to which data container the interface is developed in regards to the private `_predict_*` methods? As an example, the `GLMRegressor` has tag 'coded_in_pandas' so we know that all the private `_predict_*` functions are written using pandas
 
-###### Polars to Polars #TODO technical implementation
+###### Polars to Polars
 
-Requires a round trip conversion from polars input to pandas input to compute the predictions, then back to a polars output via `create_container`. Since the input is a polars DataFrame, it must be converted before the private `_predict_*` method is called. Since polars tables are quite trivial in nature at the moment, we can just leverage the current `_convert` function already implemented in skpro to facilitate this change.
+Requires a round trip conversion from polars input to pandas input to compute the predictions, then back to a polars output via `create_container`. Since the input is a polars DataFrame, it must be converted before the private `_predict_*` method is called. However since this section deals only with outputs in polars DataFrames, is it out of scope. Perhaps another section on how to deal with polars DataFrames during input checking will be facilitated. Note: This is the situation where polars is not defined as a valid mtype for the given regression estimator
 
-## 4) Current functionality of polars inside  `skpro.survival`
+## 4) Complete end to end polars support for `skpro` regressors
 
-#TODO
+Supporting end to end polars is a state in which the use of pandas is bypassed entirely. This means that given a specified data container of polars and the estimator also supports polars, there would be no need to handle the middle conversions in between (for estimators that would not support polars inhenerently, see section 3 'Polars to Polars')
+
+To facilitate this, the estimators must contain the value 'polars_eager_table' inside the tags `X_inner_mtype` and `y_inner_mtype`. 
+
+Estimator that contain the 'polars_eager_table' tag inside inner mtypes must be able to do the following
+
+1) Boilerplate must be able to handle polars eager tables inputs directly and output them back via the boilerplate code. (already handled?)
+   1) should handle the case where 'polars_eager_frame' is passed
+   2) should handle the cases where something else is passed i.e 'pandas DataFrame' or some other mtype
+2) Inverse directions from section 3. Given `set_output` user specified transformations, all test cases also must pass
+
+Testing will be done to see if any other implementation is required. Need to see current behaviour of a 'polars_eager_table' only estimator and the behaviour if it is part of a list.
 
 ## 5) Extending functionality of `survival` and description of proposed solution
 
@@ -289,8 +300,6 @@ Requires a round trip conversion from polars input to pandas input to compute th
 #TODO
 
 ## 8) Extending base classes to incorporate a potential `set_output` like functionality
-
-#TODO - ideas welcome
 
 #### 8.1) A very rough outline of `sklearn`'s `set_output` functionality
 
@@ -364,8 +373,6 @@ Possible values for transformation will follow `X_inner_mtype` convention, and w
 #TODO write loose methods on `get_output_config`
 
 #TODO Write Adapters for Polars or Pandas
-
-
 
 ## 9) Other Ideas/Discussion Items
 

@@ -78,7 +78,7 @@ From this, some slight preferences:
 
 ## 5. Implementation
 
-To aid discussion and illustrate points, a WIP implementation is provided by the `BayesianLinearRegressor` class, as introduced in the [PR](https://github.com/sktime/skpro/pull/358) for `skpro`.  is a carefully designed probabilistic Bayesian linear regression model that leverages the power and flexibility of the `PyMC` library. `PyMC` is one of the most widely adopted Bayesian frameworks in Python, known for its robust and flexible modeling capabilities.
+To aid discussion and illustrate points, a WIP implementation is provided by the `BayesianLinearRegressor` class, as introduced in the [PR](https://github.com/sktime/skpro/pull/358) for `skpro`.  i
 
 ### Key Design Decisions:
 
@@ -88,7 +88,7 @@ To aid discussion and illustrate points, a WIP implementation is provided by the
 2. **Consistent Data Handling with `ArViz`:**  
    The internal data container is managed by `ArViz`, a standard in the Bayesian analysis community. `ArViz` works seamlessly with `PyMC`, offering a consistent interface for handling and visualizing posterior distributions and other relevant data. This choice ensures that users can leverage the extensive visualization and diagnostic tools provided by `ArViz` without additional overhead.
 
-3. **Flexible Prior Specification:**  
+3. **Flexible Prior Specification using `pymc-marketing`'s `Prior`:**  
    The class allows for the use of either default priors or custom priors via `pymc-marketing`'s `Prior` class. This makes it accessible to both beginners, who can rely on sensible defaults, and more advanced users, who can tailor the model to their specific needs. The `Prior` class integrates natively with the `PyMC` model stack, ensuring a smooth experience when defining custom priors.
 
 The list of methods defined in this class are as follows:

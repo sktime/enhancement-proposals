@@ -90,6 +90,8 @@ To aid discussion and illustrate points, a WIP implementation is provided by the
 
 3. **Flexible Prior Specification using `pymc-marketing`'s `Prior`:**  
    The class allows for the use of either default priors or custom priors via `pymc-marketing`'s `Prior` class. This makes it accessible to both beginners, who can rely on sensible defaults, and more advanced users, who can tailor the model to their specific needs. The `Prior` class integrates natively with the `PyMC` model stack, ensuring a smooth experience when defining custom priors.
+   
+   Note that `pymc-marketing`, the creator of the `Prior` class, is composed of the same team behind `PyMC`. This suggests that both the `Prior` class and the broader `pymc-marketing` library are likely to receive ongoing updates and support. The `Prior` class itself appears to be a wrapper around PyMC primitives, which we could replicate from scratch if needed.
 
 The list of methods defined in this class are as follows:
 
@@ -105,3 +107,5 @@ The list of methods defined in this class are as follows:
 | `get_posterior_summary(**kwargs)`             | Returns summary statistics of the posterior distributions.                                           |
 | `sample_in_sample_posterior_predictive()`     | Samples from the posterior predictive distribution using the in-sample data.                         |
 | `plot_ppc(**kwargs)`                          | Plots the posterior predictive check using the sampled posterior predictive distribution.            |
+
+Many of these methods act as a thin wrapper around `PyMC` and `ArViz`, abstracting away the complexity and reducing the need for users to be knowledgable of these underlying packages.

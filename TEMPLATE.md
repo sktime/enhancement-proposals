@@ -39,11 +39,9 @@ Using `skpro` distribution                                                 | <ul
 Implement methods for:
 1. Visualizing prior and posterior distributions
 2. Trace plots for MCMC diagnostics
-3. Autocorrelation plots
-4. Prior vs Posterior plots
-5. Posterior predictive check plots
-6. Pair plots for parameter relationships
-7. Model flow visualization (similar to Graphviz visualizations of PyMC models)
+3. Prior vs Posterior plots
+4. Posterior predictive check plots
+5. Model flow visualization (similar to Graphviz visualizations of PyMC models)
 
 
 ## 4. Considerationss
@@ -78,3 +76,32 @@ From this, some slight preferences:
 ### 4.6 Compatibility with sktime and skpro
 - Design the class to be orthogonal to existing model classes in `sktime` and `skpro`.
 
+## 5. Implementation
+
+To aid discussion and illustrate points, a WIP implementation is provided by the `BayesianLinearRegressor` class, as introduced in the [PR](https://github.com/sktime/skpro/pull/358) for `skpro`.  is a carefully designed probabilistic Bayesian linear regression model that leverages the power and flexibility of the `PyMC` library. `PyMC` is one of the most widely adopted Bayesian frameworks in Python, known for its robust and flexible modeling capabilities.
+
+### Key Design Decisions:
+
+1. **Using `PyMC` as backend:**  
+   By using `PyMC`, this class leverages a popular and well-established ecosystem that supports a wide range of Bayesian modeling techniques.
+
+2. **Consistent Data Handling with `ArViz`:**  
+   The internal data container is managed by `ArViz`, a standard in the Bayesian analysis community. `ArViz` works seamlessly with `PyMC`, offering a consistent interface for handling and visualizing posterior distributions and other relevant data. This choice ensures that users can leverage the extensive visualization and diagnostic tools provided by `ArViz` without additional overhead.
+
+3. **Flexible Prior Specification:**  
+   The class allows for the use of either default priors or custom priors via `pymc-marketing`'s `Prior` class. This makes it accessible to both beginners, who can rely on sensible defaults, and more advanced users, who can tailor the model to their specific needs. The `Prior` class integrates natively with the `PyMC` model stack, ensuring a smooth experience when defining custom priors.
+
+The list of methods defined in this class are as follows:
+
+
+| **Method**                                    | **Description**                                                                                     |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `fit(X, y)`                                   | Fits the Bayesian Linear Regression model to the training data `X` and target `y`.                   |
+| `predict_proba(X)`                            | Predicts the probability distribution of the target variable for the input data `X`.                 |
+| `visualize_model(**kwargs)`                   | Visualizes the Bayesian model using `graphviz`.                                                      |
+| `sample_prior(return_type=None)`              | Samples from the prior distributions. Optionally returns the samples in the specified format.        |
+| `get_prior_summary(**kwargs)`                 | Returns summary statistics of the prior distributions.                                               |
+| `sample_posterior(return_type=None)`          | Samples from the posterior distributions. Optionally returns the samples in the specified format.    |
+| `get_posterior_summary(**kwargs)`             | Returns summary statistics of the posterior distributions.                                           |
+| `sample_in_sample_posterior_predictive()`     | Samples from the posterior predictive distribution using the in-sample data.                         |
+| `plot_ppc(**kwargs)`                          | Plots the posterior predictive check using the sampled posterior predictive distribution.            |

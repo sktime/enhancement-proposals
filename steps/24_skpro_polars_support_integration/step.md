@@ -56,7 +56,7 @@ The output of `_predict_*`  functions will return pandas Dataframes no matter th
 Lets consider the current inplementation of `predict_interval` seen inside `regression._base`. Assuming we follow section 8.2's implementation, the proposed implementation of a function like `predict_interval` could look as follows:
 
 ```python
-	    def predict_interval(self, X=None, coverage=0.90):
+def predict_interval(self, X=None, coverage=0.90):
         """Compute/return interval predictions.
 
         If coverage is iterable, multiple intervals will be calculated.
@@ -106,23 +106,31 @@ Lets consider the current inplementation of `predict_interval` seen inside `regr
         # pass to inner _predict_interval
         pred_int = self._predict_interval(X=X_inner, coverage=coverage)
 
-	*valid, output_config = check_transform_config(self)
+	*valid, output_config = _check_output_config(self)
 	*if valid:
-		*transform_adapter = output_config["dense"]
-		*adapter, columns = get_config_adapter(transform_adapter, pred_int)
-		*pred_int = adapter.create_container(pred_int, columns)
+		convert_to_mtype, convert_to_scitype = _transform_output(output_config)
+	else:
+		convert_to_mtype = self._y_metadata["mtype"]
+		convert_to_scitype = "Table"
 
+	*pred_int = convert(
+		pred_int, 
+		from_type = self.get_tag("y_inner_mtype"),
+		to_type=convert_to_mtype,
+		as_scitype=convert_to_scitype,
+		store=self._X_converter_store,
+		)
         return pred_int
 
 ```
 
-We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform". Once we have a valid output container from the user, we locate the corresponding adapter class using the function `get_config_adapter` and select the correct adapter class from the adapters module (this can be implemented as part of https://github.com/sktime/skpro/pull/392). Inside `get_config_adapter` we also do any necessary conversions of the columns (and potentially index?) into appropriate format. Finally, we use the adapter's specific create container function to create the dataframe in the container specified in `set_output` with the correct column names.
+We insert a few new lines denoted by * to indicate new functionality. First we ensure that the user has utilized the `set_output` function to pass in a new transform. If the user has a "transform" defined (see section 8.2), then we first check that it is a valid "transform" via `_check_output_config`. Once we have a valid output container from the user, we locate the corresponding `mtype` and `scitype` based on the function in question ('Proba' for quantiles and interval, and 'Table' for var and predict) using `_transform_output`. Finally, the conversion methods in `convert` will then handle the conversions between the original type to the desired user output data container.
 
 If the `set_output` function was not used (i,e valid is False), then we skip this code block and move straight to return the prediction dataframe.
 
-Similar adaptations can be followed inside `predict_quantiles`, `predict_var` and `predict_proba`. We will first call `._check_X` and convert input X if necessary into the correct mtype. Then, if the user specified a new transform container through `set_output`, we verify that the transform value passed in from the user is a valid key, and then call the convert output function to transform.
+Similar adaptations can be followed inside `predict_quantiles`, `predict_var` and. We will first call `._check_X` and convert input X if necessary into the correct mtype. Then, if the user specified a new transform container through `set_output`, we verify that the transform value passed in from the user is a valid key, and then call the convert output function to transform.
 
-To summarize, all `predict_` functions inside `regression._base.py` will have the new code marked in * to facilitate the checking, convert of the output data container. The actual conversion method `create_container` will depend on the adapter specified as part of the `transform` specification done by the user. This method could be potentially be implemented as part of https://github.com/sktime/skpro/pull/392
+To summarize, all `predict_` functions inside `regression._base.py` will have the new code marked in * to facilitate the checking, convert of the output data container. Validations for user specified output data container will be validated through `_check_output_config`, and then the correct mtype/scitypes will be obtained through `_transform_output`. The actual conversion method `convert `will then convert the data container as specified by the user using `set_output`.
 
 ### Potential Conversion combinations
 
@@ -319,48 +327,118 @@ Function `create_container` is uniquely defined based on the data container adap
 
 All adapter classes and functions `create_container` and `_get_output_config` are specified inside `utils._set_output.py`
 
-#### 5.2) Potential solution for `skpro` following `sklearn`
+#### 5.2) Solution for `skpro` following `sklearn` by introducing `set_output`
 
-Adapter classes for polars and pandas can be installed and configured inside `_adapters` with its own conversion functions and other required functions. As an example, consider
-
-```python
-
-class PandasAdapters():
-	"""
-	Adapter container for conversions between various mtypes.
-	PandasAdapters support conversions to ["polars_eager_table"]
-	"""
-
-	def create_container(self, X, columns):
-		if not isinstance(X, pd.DataFrame):
-			X_out = pd.DataFrame(X, columns = columns)
-			return X_out
-
-```
-
-Idea 1: `BaseProbaRegressor` will introduce a new function `set_output` so that users will be able to call `set_output` in a similar style to `sklearn`.
+`BaseProbaRegressor` will introduce a new function `set_output` so that users will be able to call `set_output` in a similar style to `sklearn`.
 
 ```python
-def set_output(transform):
-	"""Sets the backend output container
-	Parameters
-	----------
-	transform : {"pandas", "polars"}, default = pandas
-	Configures the output of the estimator's predict functions
+def set_output(self, transform_output):
+        """Set output container.
 
-	"""
-	self._backend_transform["transform"] = transform
+        Parameters
+        ----------
+        transform_output : {"polars", "pandas", "default"}
+
+            Configures the out of any _predict_* function in regression estimators
+                - "default" : assumes no transform has been passed in, will use
+                default settings
+
+                - "pandas" : all outputs will be converted into pandas DataFrames
+                - "polars" : all outputs will be converted into polars DataFrames
+            default = "default"
+        Returns
+        -------
+        self : estimator instance
+        """
+        if transform_output is None:
+            return self
+
+        self.set_config(**{"transform_output": transform_output})
+        return self
 ```
 
-* `BaseProbaRegressor` will introduce a new attribute called `_backend_transform` and will default to `pandas`.
+Possible values for `set_output` will be (for now) 'polars' and 'pandas', specifying polars and pandas outputs respectively. For polars and pandas, it will always be in DataFrame format (so no pandas Series etc will be possible outputs)
 
-Any other required functions like `get_output_config` or extra miscellaneous functions will be included inside a new file named `_set_output.py` inside `utils` (see references)
+#### 5.3) `set_output` mappings for `table` and `proba` scitypes
 
-Possible values for transformation will follow `X_inner_mtype` convention, and will be currently limited to both `pd_DataFrame_Table` and `polars_eager_table`. There will be a one to one correspondence so that "pandas" points to `pd_DataFrame_Table` and "polars" points to `polars_eager_table`.
+In section 3, we described the possible output dataframes for `predict_interval`, `predict_quantiles` and `predict_var`. These functions exist under the `Proba` scitype, while `predict` is in the `table` scitype. 
 
-#TODO write loose methods on `get_output_config`
+In our proposed solution, we are proposing that a certain mapping method is designed to ensure the correct output is returned. Since the conversion methods in skpro are done via 'mtype' and 'scitype', this mapping method is required in order to translate the user specified output into an mtype/scitype pair.
 
-#TODO Write Adapters for Polars or Pandas
+The dictionary `SUPPORTED_OUTPUT_MAPPINGS` describes a key value pair where the key is an available `set_output` parameter and the corresponding value is a list of mtype/scitype pairs.
+
+```python
+SUPPORTED_OUTPUT_MAPPINGS = {
+    "pandas": [("pd_DataFrame_Table", "Table"), ("pred_interval_pandas", "Proba"), ("pred_quantiles_pandas", "Proba"), ("pred_var_pandas", "Proba")],
+    "polars": [("polars_eager_table", "Table"), ("pred_interval_polars", "Proba"), ("pred_quantiles_polar", "Proba"), ("pred_var_polar", "Proba")]
+}
+```
+
+The `SUPPORTED_OUTPUT_MAPPINGS` mappings will be used in the function `_check_output_config`, which ensures that the argument passed via `set_output` is correct. 
+
+```python
+def _check_output_config(estimator):
+    """Given an estimator, verify the transform key in _config is available.
+
+    Parameters
+    ----------
+    estimator : a given regression estimator
+
+    Returns
+    -------
+    dense_config : a dict containing the specified mtype user wishes to convert
+        corresponding dataframes to.
+        - "dense": specifies the mtype data container tuple (mtype, scitype)
+                   in the transform config
+            Possible values are located in SUPPORTED_OUTPUTS in
+            `skpro.utils.set_output`
+    """
+    output_config = {}
+    transform_output = estimator.get_config()["transform_output"]
+    # check if user specified transform_output is in scope
+    if transform_output not in SUPPORTED_OUTPUTS:
+        raise ValueError(
+            f"set_output container must be in {SUPPORTED_OUTPUTS}, "
+            f"found {transform_output}."
+        )
+    elif transform_output != "default":
+        valid = True
+        output_config["dense"] = SUPPORTED_OUTPUT_MAPPINGS[transform_output]
+    else:
+        valid = False
+
+    return valid, output_config
+```
+
+If the value passed inside `_check_output_config` is valid, then we pass back the corresponding list of output mappings. This will be returned as a variable named `output_config`
+
+The function `_transform_output` will then select the correct mtype/scitype pair from the values based on the function that is being used.
+
+```python
+def _transform_output(output_config, function_name):
+	"""Return the correct specified output container.
+	Given a set of possible mtype/scitype pairs, return the correct one given the current function
+	"""
+	if function_name == "interval":
+		#retrieve corresponding interval mtype and scitype pair
+		convert_to_mtype = ...
+		convert_to_scitype = ...
+	if function_name == "quantiles":
+		#retrieve corresponding quantiles mtype and scitype pair
+		convert_to_mtype = ...
+		convert_to_scitype = ...
+	etc..
+
+	return [convert_to_mtype, convert_to_scitype]
+```
+
+In the end state, based on what function is being is being called by the user, the code should be able to obtain the correct 'from_type' and the 'to_type' and the correct scitype. For example:
+
+If the user is using `predict` and the `set_output` is configured to `polars`, then using `SUPPORTED_OUTPUT_MAPPINGS`, we can select the correct to mtype "pd_DataFrame_Table" and the correct scitype "Table", and then utilize skpro's convert function to make that conversion.
+
+If the user is using `predict_interval`, then we pass along the mtype `pred_interval_pandas` and the scitype `Proba`. Note that currently for the `Proba` scitype, there are not any specific data container mtypes, so ideas would be appreciated here how we can design the mapping method and what corresponding mtypes should be applicable
+
+We will need to define data containers and conversion methods that can be set as outputs for the `Proba` scitype.
 
 ## 6) Other Ideas/Discussion Items
 

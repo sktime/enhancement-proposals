@@ -276,7 +276,7 @@ Requires a round trip conversion from polars input to pandas input to compute th
 
 Supporting end to end polars is a state in which the use of pandas is bypassed entirely. This means that given a specified data container of polars and the estimator also supports polars, there would be no need to handle the middle conversions in between (for estimators that would not support polars inhenerently, see section 3 'Polars to Polars')
 
-To facilitate this, the estimators must contain the value 'polars_eager_table' inside the tags `X_inner_mtype` and `y_inner_mtype`. 
+To facilitate this, the estimators must contain the value 'polars_eager_table' inside the tags `X_inner_mtype` and `y_inner_mtype`.
 
 Estimator that contain the 'polars_eager_table' tag inside inner mtypes must be able to do the following
 
@@ -287,21 +287,9 @@ Estimator that contain the 'polars_eager_table' tag inside inner mtypes must be 
 
 Testing will be done to see if any other implementation is required. Need to see current behaviour of a 'polars_eager_table' only estimator and the behaviour if it is part of a list.
 
-## 5) Extending functionality of `survival` and description of proposed solution
+## 5) Extending base classes to incorporate a potential `set_output` like functionality
 
-#TODO
-
-## 6) Current functionality of polars inside  `skpro.distribution`
-
-#TODO
-
-## 7) Extending functionality of `skpro.distribution` and description of proposed solution
-
-#TODO
-
-## 8) Extending base classes to incorporate a potential `set_output` like functionality
-
-#### 8.1) A very rough outline of `sklearn`'s `set_output` functionality
+#### 5.1) A very rough outline of `sklearn`'s `set_output` functionality
 
 Link to direct example of functionality: https://scikit-learn.org/stable/auto_examples/miscellaneous/plot_set_output.html#sphx-glr-auto-examples-miscellaneous-plot-set-output-py
 
@@ -331,7 +319,7 @@ Function `create_container` is uniquely defined based on the data container adap
 
 All adapter classes and functions `create_container` and `_get_output_config` are specified inside `utils._set_output.py`
 
-#### 8.2) Potential solution for `skpro` following `sklearn`
+#### 5.2) Potential solution for `skpro` following `sklearn`
 
 Adapter classes for polars and pandas can be installed and configured inside `_adapters` with its own conversion functions and other required functions. As an example, consider
 
@@ -374,7 +362,7 @@ Possible values for transformation will follow `X_inner_mtype` convention, and w
 
 #TODO Write Adapters for Polars or Pandas
 
-## 9) Other Ideas/Discussion Items
+## 6) Other Ideas/Discussion Items
 
 Discussion item 0: Inclusion of `__index__` column inside all `predict/_predict_*` methods when applying pandas -> polars
 
@@ -414,7 +402,7 @@ Discussion idea 4: Workflow for future contributers/conversions between mtypes d
 
 #TODO - ideas welcome
 
-## 10) References
+## 7) References
 
 * Polars API document: https://docs.pola.rs/py-polars/html/reference/
 * Modern Polars: https://kevinheavey.github.io/modern-polars/

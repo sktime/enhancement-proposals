@@ -266,7 +266,10 @@ and for frames that require melting:
 
 ###### Polars to Pandas
 
-Requires a conversion during the input check from polars to pandas. If this is not handled already in skpro, we can potentially enhance the current functionality within `_check_X` and `_convert` to check what format the input is in and then change it if necessary. Another section may be required to facilitate any code changes as this section only deals with polars output containers.
+There are a couple scenarios that could occur based on the expected input from the estimator's `X_inner_mtype` and `y_inner_mtype`. 
+
+1) If the estimator supports only polars DataFrames, then if the user specifies 'pandas' in `set_output`, then there must be conversion methods to support the inverse mapping i.e from polars single columns to pandas multi-columns.
+2) If the estimator only supports pandas DataFrames, and the user specifies 'pandas' in `set_output`, then the code must be able to successfully ignore any 'conversions'.
 
 ~~Question 3.1~~) is this already handled? in the scenario where a polars dataframe is passed and `skpro` automatically converts it into a pandas DataFrame to calculate the predictions?
 

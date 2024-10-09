@@ -1,32 +1,37 @@
 Here’s the revised documentation with the changes requested:
 
-# `BayesianLinearRegressor` Class for skpro
+# `BayesianLinearRegressor` Class for `skpro`
 
 Contributors: @meraldoantonio
 
 ## 1. Introduction
 
-This proposal outlines the design and functionality of the `BayesianLinearRegressor` class, to be integrated into `skpro`. This class provides a flexible framework for performing Bayesian linear regression while ensuring compatibility with the existing `skpro` interfaces. By leveraging `PyMC` for Bayesian inference, this class simplifies the process of specifying priors, fitting models, and performing posterior inference.
+This proposal outlines the design and functionality of the `BayesianLinearRegressor` class in `skpro`. This class provides a flexible framework for performing Bayesian linear regression while ensuring compatibility with the existing `skpro` interfaces. By leveraging `PyMC` for Bayesian inference, this class simplifies the process of specifying priors, fitting models, and performing posterior inference. This class is also intended as a blueprint after which future Bayesian estimators are to be modeled.
 
 ## 2. Problem Statement
 
 Bayesian linear regression incorporates domain knowledge through the specification of prior distributions over model parameters. During the fitting process, these priors are updated with observed data to form posterior distributions. The `BayesianLinearRegressor` class supports this workflow by offering methods for:
 - Prior specification
 - Model fitting using Bayesian inference (via Markov Chain Monte Carlo - MCMC)
-- Posterior sampling
+- Posterior and posterior sampling
+- Inference
 - Visualization and diagnostics
 
-## 3. Libraries Used
+## 3. Backend Libraries Used
 
-- **PyMC**: The primary backend for Bayesian inference, including MCMC sampling.
-- **ArViz**: For visualization and diagnostic checks of Bayesian models.
-- **pymc-marketing**: Provides a convenient `Prior` class for specifying prior distributions.
+The logic of the  `BayesianLinearRegressor` class is built on top of the following backend libraries, chosen to ensure the `BayesianLinearRegressor` class is built on a stable foundation.
 
-These libraries ensure the `BayesianLinearRegressor` class is built on a stable foundation, facilitating integration with broader Bayesian workflows.
+- **`PyMC`**: 
+`PyMC` is the primary backend for Bayesian inference in the `BayesianLinearRegressor` class. This library, widely regarded as industry standard for Bayesian modeling in Python, provides a flexible framework for defining probabilistic models and performing inference using various flavors of MCMC. Its integration with `ArViz` and other libraries makes it a powerful tool for Bayesian analysis in Python.
+
+- **`ArViz`**: 
+`ArViz` is a library for managing, visualizing and diagnosing Bayesian models. It uses the `InferenceData` (`idata`) object as a standard container for storing and organizing data related to Bayesian models. This object holds posterior samples, prior samples, observed data, and other metadata, making it easy to analyze model outputs and allowing for seamless integration of various stages of the Bayesian workflow.
+
+- **`pymc-marketing`**: 
+Developed by the same team behind `PyMC`, this library provides a convenient `Prior` class for specifying prior distributions. It natively integrates with the rest of `PyMC` ecosystem.
 
 ## 4. Overview of Key Elements and Methods
-
-The `BayesianLinearRegressor` class provides a comprehensive set of methods for managing different aspects of the Bayesian regression workflow. Here’s how these methods map to the key steps in the workflow:
+The `BayesianLinearRegressor` class provides a set of methods for managing different stages of the Bayesian regression workflow. These stages, along with the relevant methods, are described below:
 
 ### 1. **Prior Specification**
 
@@ -41,7 +46,7 @@ The fitting process uses MCMC to estimate the posterior distributions based on t
 
 - `fit(X, y)`: Fits the Bayesian Linear Regression model to the training data `X` and target `y`.
 
-### 3. **Using the Model for Inference**
+### 3. **Inference**
 
 After fitting, the model can be used to predict the distribution of the target variable for new input data.
 
@@ -62,18 +67,18 @@ The class offers multiple methods to visualize the model and assess its performa
 - `visualize_model(**kwargs)`: Visualizes the Bayesian model using Graphviz.
 - `plot_ppc(**kwargs)`: Plots the posterior predictive check using the sampled posterior predictive distribution.
 
-## 5. Specification of Prior Distributions
+## 5. Prior Specification: Further Details
 
 The class provides flexible options for specifying prior distributions through the `Prior` class from `pymc-marketing`. By default, weakly informative priors are used for intercept, slopes, and noise variance, but users can easily modify these priors.
 
 The `Prior` class integrates smoothly with `PyMC`, allowing for a clean and simple interface to define prior distributions. Each prior is specified by choosing a distribution (e.g., `Normal`, `HalfCauchy`) and setting its parameters (e.g., `mu`, `sigma`). This method is intuitive and aligns with the PyMC model-building process.
 
 ### Alternative Considerations:
+Before finally settling for the use of the `Prior` class, alternative ways of specifying priors were considered and are briefly discussed below:
 - **Predefined Priors with User-Adjustable Parameters**: Simplifies user input but limits flexibility.
-- **skpro Distributions**: Would ensure native compatibility with skpro but requires conversion to PyMC distributions.
-- **`Prior` Class from `pymc-marketing`**: Provides an easy-to-use API with full compatibility with PyMC. This approach is adopted as the default for the `BayesianLinearRegressor`.
+- **skpro Distributions**: Would ensure native compatibility with skpro but requires tricky conversion to PyMC distributions
 
-## 6. Model Fitting
+## 6. Model Fitting: Further Details
 
 The `fit` method is responsible for fitting the Bayesian Linear Regressor to the provided dataset, \(X\) (features) and \(y\) (target). This method follows these steps:
 
@@ -85,7 +90,7 @@ The `fit` method is responsible for fitting the Bayesian Linear Regressor to the
 
 4. **Storing Results**: After fitting, the model stores the generated posterior samples in the `idata` attribute, managed by ArViz. The model is then ready for inference or further analysis.
 
-## 7. Using the Model for Inference
+## 7. Inference: Further Details
 
 Once the model is fitted, it can be used to predict the probability distribution of the target variable for new input data using the `predict_proba` method.
 

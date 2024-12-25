@@ -10,7 +10,20 @@ For preliminary discussions of the proposal presented here, see issues and PRs: 
 
 ## Contents
 
-[TOC]
+1. [Introduction](#introduction)
+2. [Problem Statement](#problem-statement)
+3. [Description of Proposed Solution](#description-of-proposed-solution)  
+   - [__init__ and load](#__init__-and-load)  
+   - [Train and Test Splits](#train-and-test-splits)  
+   - [Base Classes](#base-classes)  
+   - [Tags](#tags)  
+     - [Base Dataset Tags](#base-dataset-tags)  
+     - [Classification Tags](#classification-tags)  
+     - [Regression Tags](#regression-tags)  
+     - [Forecasting Tags](#forecasting-tags)  
+4. [Motivation](#motivation)
+5. [Discussion and Comparison of Alternative Solutions](#discussion-and-comparison-of-alternative-solutions)
+6. [Detailed Description of Design and Implementation](#detailed-description-of-design-and-implementation-of-proposed-solution)  
 
 ## Problem statement
 

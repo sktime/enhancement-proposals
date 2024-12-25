@@ -6,7 +6,11 @@ Contributors: ["felipeangelimvieira", "fkiraly"]
 
 This STEP is an enhacement proposal concerning the creation of Dataset objects.
 
-For preliminary discussions of the proposal presented here, see issues and PRs: [sktime/sktime/#4332,sktime/sktime/#4333,sktime/sktime#7398]
+For preliminary discussions of the proposal presented here, see issues and PRs: 
+
+* sktime/sktime/#4332
+* sktime/sktime/#4333
+* sktime/sktime#7398
 
 ## Contents
 

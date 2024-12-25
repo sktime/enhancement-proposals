@@ -1,11 +1,10 @@
-# [Title]
+# Dataset object
 
 Contributors: ["felipeangelimvieira", "fkiraly"]
 
 ## Introduction
 
 This STEP is an enhacement proposal concerning the creation of Dataset objects.
-
 
 For preliminary discussions of the proposal presented here, see issues and PRs: [sktime/sktime/#4332,sktime/sktime/#4333,sktime/sktime#7398]
 
@@ -33,9 +32,8 @@ Dataset objects should have all the parameters that identify the content of it d
 Many public datasets have default train-tests splits, and could also potentially have default cross-validation splits. Others, however, do not provide such sets. The following behaviour will be used to handle this heterogeneity:
 
 * Calling load with "X_train", "X_test", "y_train" and "y_test" should raise `InvalidSetException` if the dataset does not have a pre-defined split. The sktime interface will not provide a custom split if the original dataset does not define one.
-* In the case of the existence of a cross validation split, `"X_trains"`,`"X_tests"`, `"y_trains"` and `"y_tests"` (in plural form) should be used instead of their singular, and a generator with the CV folds will be returned. All these four sets would have the same length, equal to the number of folds in the CV split. The benchmarking module and users can use the builtin `zip` function to iterate over all sets together.
-* Datasets with a single train-test split should return generators of length one when `"*_trains"` and `"*_tests"` are called.
-* If the dataset has a CV split that is not a simple train-test split, then calling `"X_train"`, `"X_test"`, `"y_train"` and `"y_test"` should also raise `InvalidSetException`, and an informative error message recommending the user to call `"X_trains"` and the other sets with "s".
+* In the case of existence of a cross validation split, "cv" keyword can be used, and a generator with the CV folds will be returned. This generator will have length equal to the number of folds in the CV split, and contain the "X_train", "X_test", "y_train" and "y_test" data for each split. Datasets with a single train-test split should return generators of length one.
+* If the dataset has a CV split that is not a simple train-test split, then calling `"X_train"`, `"X_test"`, `"y_train"` and `"y_test"` should also raise `InvalidSetException`, and an informative error message recommending the user to call `"cv"`.
 
 ### Base classes
 
@@ -120,7 +118,7 @@ Many libraries provide interfaces for retrieving datasets. Here are some example
 
 ### Base class
 
-```
+```python
 class BaseDataset(BaseObject):
     """Base class for datasets."""
 
@@ -128,7 +126,6 @@ class BaseDataset(BaseObject):
     _tags = {
         "object_type": "dataset",  # type of object
         "name" :  None, # The dataset unique name
-        "citation": None,  # citation for the dataset
         "python_dependencies" : None, # python dependencies required to load the dataset
         "python_version" : None, # python version required to load the dataset
         "n_splits" : 0, # Number of cross-validation splits, if any.
@@ -177,10 +174,11 @@ class BaseDataset(BaseObject):
             List of available sets.
         """
         sets = ["X", "y"]
-        if self.get_tag("n_splits") == 1:
+        n_splits = self.get_tag("n_splits")
+        if n_splits == 1:
             sets.extend(["X_train", "y_train", "X_test", "y_test"])
-        else:
-            sets.extend(["X_trains", "y_trains", "X_tests", "y_tests"])
+        elif n_splits > 1:
+            sets.append("cv")
         return sets
     
     def cache_files_directory(self):
@@ -202,6 +200,21 @@ class BaseDataset(BaseObject):
         cache_directory = self.cache_files_directory()
         if cache_directory.exists():
             shutil.rmtree(cache_directory)
+
+
+class InvalidSetError(Exception):
+    """Exception raised for invalid set names."""
+
+    def __init__(self, set_name, valid_set_names):
+        self.set_name = set_name
+        self.valid_set_names = valid_set_names
+
+    def __str__(self):
+        return (
+            f"Invalid set name: {self.set_name}. "
+            f"Valid set names are: {self.valid_set_names}."
+        )
+
 ```
 
 ### Mixin to wrap current loaders

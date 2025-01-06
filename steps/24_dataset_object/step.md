@@ -48,7 +48,7 @@ Dataset objects should have all the parameters that identify the content of it d
 
 Many public datasets have default train-tests splits, and could also potentially have default cross-validation splits. Others, however, do not provide such sets. The following behaviour will be used to handle this heterogeneity:
 
-* Calling load with "X_train", "X_test", "y_train" and "y_test" should raise `InvalidSetException` if the dataset does not have a pre-defined split. The sktime interface will not provide a custom split if the original dataset does not define one.
+* Calling load with "X_train", "X_test", "y_train" and "y_test" should raise `InvalidSetException` if the dataset does not have a pre-defined split. The sktime interface will not provide a custom split if the original dataset does not define one. 
 * In the case of existence of a cross validation split, "cv" keyword can be used, and a generator with the CV folds will be returned. This generator will have length equal to the number of folds in the CV split, and contain the "X_train", "X_test", "y_train" and "y_test" data for each split. Datasets with a single train-test split should return generators of length one.
 * If the dataset has a CV split that is not a simple train-test split, then calling `"X_train"`, `"X_test"`, `"y_train"` and `"y_test"` should also raise `InvalidSetException`, and an informative error message recommending the user to call `"cv"`.
 
@@ -181,7 +181,7 @@ class BaseDataset(BaseObject):
                 raise InvalidSetError(arg, self.available_sets)
 
     @property
-    def available_sets(self):
+    def keys(self):
         """
         Return a list of available sets.
         
@@ -218,6 +218,8 @@ class BaseDataset(BaseObject):
         if cache_directory.exists():
             shutil.rmtree(cache_directory)
 
+    def __getitem__(self, key):
+        return  self.load(key)
 
 class InvalidSetError(Exception):
     """Exception raised for invalid set names."""

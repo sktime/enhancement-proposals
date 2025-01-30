@@ -12,6 +12,18 @@ Allow users to pass exog data with categorical features to any forecaster. Outco
 * https://github.com/sktime/sktime/pull/5886 - This pr removes these checks but has not been merged yet as most estimators do not support categorical and will break without informative error messages.
 * https://github.com/sktime/sktime/pull/6490 - pr adding feature_kind metadata
 
+### Conceptual model:
+
+Note: For this proposal, I am limiting the scope to categorical in `exogeneous` features in forecasters.
+1. Data passed to a forecaster in fit/predict may include exogeneous(X)data along with endogeneous y.
+2. The exogeneous data may contain categorical variables.(i.e non-numeric dtype). There may also be numeric columns to be treated as categorical as per the user.
+3. Manner of specification of such features may vary depending on the design.
+4. If the forecaster natively supports categorical, proceed to fit as usual. If not supported, it needs to be handled accordingly so that categorical data is not fed into the model causing uninformative errors internally.
+
+5. In reduction cases, categorical support is determined by the model used in reduction.
+6. Further, different libraries (xgboost, catboost etc) have different expectations/specifications and these need to be followed in reduction.
+
+
 
 ### Conceptual model
 
@@ -69,6 +81,7 @@ X_train,X_test,y_train,y_test = temporal_train_test_split(y,X,0.5)
 - xgboost
 - lightgbm
 - catboost
+- HistGradientBoostingRegressor (sklearn)
 
 - Note that all these will have to be used via reduction.
 - I suggest creating a wrapper class for these models on top of make_reduction. This is only for regressors which support natively and have to be used via reduction. The discussion below and designs discussed apply to forecasters but right now, there is no forecasting algorithm which has native support. So these regression models in wrapper classes can serve as forecasters with native support.
@@ -94,7 +107,7 @@ Instead of this, the other option of modifying the existing make_reduction to ac
         - not deal with this case and expect user to convert from numerical to categorical. We can make a transformer for this purpose.
 
 ### Req 2
-We will use a tag `categorical_support`(=True/False) or similar to identify whether a forecaster has native support.
+We will use a tag `capability:categorical_input`(=True/False) or similar to identify whether a forecaster has native support.
 
 ### Req 3
 - Set tag depending on model used in reduction.
@@ -118,14 +131,14 @@ else if ..... and so on
 ## Major case which influences the rest of the design is 
 - Categorical data is passed but forecaster does not support natively.
 
-There are two broad ways to deal with this. Rest of the design will depend on this decision.
+Rest of the design will depend on this decision.
 
-1) No internal encoding 
-    - a) return error saying categorical is not supported by this forecaster.
-    - b) drop categorical columns with a warning and proceed to fit.
-2) Perform internal encoding
-    - a) use fixed default encoder
-    - b) provide option to user on encoders to use and on which columns.
+1) Raise error that categorical is not natively supported
+2) Default handling of categorical:
+    - a) drop categorical columns with warning(that they were dropped because of lack of native support)
+    - b) encode with fixed default encoder
+3) Handling based on user choice
+i.e.user can specify choice of encoder and on which columns to apply
 
 
 1) raise error if mismatch
@@ -144,16 +157,16 @@ There are two broad ways to deal with this. Rest of the design will depend on th
 for the above cases there are even more combinations based on which solution we take for the subchallenge mentioned under requirement 1.(cat_features arg, no arg, set_config)
 There are too many designs due to the large combinations of solutions possible and they vary greatly depending on the above broad decision we take.
 
-So I suggest taking a call on whether we want to perform internal encoding or not first and then we can explore the corresponding possible designs in detail.
+So I suggest taking a call on which of the above designs we want to go ahead with and then go into the finer details.
 
-I have listed the specifics for a few combinations below so we have an idea of what is to be expected from the two broad outcomes.
+I have listed the specifics with pros/cons and examples for a few combinations below so we have an idea of what is to be expected from the design options.
 
 ---
 ---
 
-### Design 1a) . Allow categorical features ONLY in those forecasters which support natively. (no encoding internally)
+### Design 1) Raise error that categorical is not natively supported. (no encoding internally)
 
-- `categorical_features` parameter will be present only in forecasters that support natively.
+- `categorical_features` parameter will be present ONLY in forecasters that support natively.
     
     #### How tag is going to be used
     - in datatype checks :
@@ -176,7 +189,7 @@ I have listed the specifics for a few combinations below so we have an idea of w
 | YES| YES| NO | informative error message that specified column was not present in data**|
 | YES| YES| YES| use categorical columns as detected by feature_kind along with the user specified columns(union) and proceed to fit. |
 
-- *for design 1b) we will instead drop the categorical column and proceed to fit.
+- *for design 2a) we will instead drop the categorical column and proceed to fit, everything else remains the same.
 - **in case where specified column was not found, we can also choose to ignore that column and continue to fit with warning that column was not found.
 
 #### PROS:
@@ -207,12 +220,12 @@ Output:
 ```
 Error: This forecaster does not have native categorical support.
 ```
-*In design 1b) we will instead drop the categorical columns and proceed to fit/predict.
+*In design 2a) we will instead drop the categorical columns and proceed to fit/predict.
 
 ---
 ---
 
-### Design 2a). Perform some encoding method as default if not natively supported.
+### Design 2b). Perform some encoding method as default if not natively supported.
 
 - `categorical_feature`  param will be present in all models.
 
@@ -246,7 +259,7 @@ Error: This forecaster does not have native categorical support.
 
 #### Example:
 - XYZforecaster has native support - the following runs successfully
-- does not have native support -  categorical features are encoded and used in fit/predict.
+- does not have native support - internally, categorical features are encoded and used in fit/predict.
         
 ```python
 from sktime import XYZforecaster
@@ -259,8 +272,9 @@ y_pred = forecaster.predict(X_test,fh=[1,2])
 ---
 ---
 
-### Design 2a). default encoding but NO `cat_features` parameter in model
-Instead, user is required to convert the required numerical features to categorical. To ease the process, we can make a `transformer` to make this conversion.
+### Design 2b). default encoding but NO `cat_features` parameter in model
+- similar to 2a) but without the `cat_features` arg.
+- Instead, user is required to convert the required numerical features to categorical. To ease the process, we can make a `transformer` to make this conversion.
 
 - no `cat_features` parameter in models.
 
@@ -304,8 +318,9 @@ y_pred = forecaster.predict(X_test,fh=[1,2])
 
 ---
 ---
-### Design 2b).
-- Same as Design 2a)(without `cat_features` parameter) but without fixing a default encoder, instead encoders as specified by the user are used when forecaster does not support natively.
+### Design 3). Handling based on user choice
+
+- There will still be a default encoding method which is applied on categorical columns detected by feature_kind, but this can be overridden by user. If nothing is specified by the user, will use default.
 - suggested methods to let user specify the encoders and columns
     - set_config 
     - As @yarnabrina suggested - Users can pass configuration for the forecaster to specify encoding choices, with a specific encoding method (say one hot encoding being default). It'll look like 
@@ -315,6 +330,17 @@ y_pred = forecaster.predict(X_test,fh=[1,2])
 
     1) single encoder instance -> use feature kind to identify categorical features
     2) dictionary with column names as keys and value as encoder instance
+
+| **Estimator supports categorical natively** |**User has specified handling** |**Cat feature present in data** |  **Outcome**  |
+|:-------------------------------------------:|:--:|:-------------------------------:|:---------------:|
+| NO | NO | NO | normal case, fits without error. |
+| NO | NO | YES| encode features by default handling and continue.
+| NO | YES| NO | error that specified column was not present in data/ignore with warning |
+| NO | YES| YES| encode features as per user specification|
+| YES| NO | NO | normal case, fits without error.|
+| YES| NO | YES| use categorical features detected by feature_kind and fit|
+| YES| YES| NO | error that specified column was not present in data/ignore column with warning|
+| YES| YES| YES| encode features as per user specification|
 
 #### Example
 
@@ -328,13 +354,24 @@ forecaster.set_config(enc_config=config_dict)
 forecaster.fit(y_train, X_train)
 y_pred = forecaster.predict(X_test,fh=[1,2])
 ```  
+The user specified handling is performed and then continue to fit. If user did not specify encoder to use for some categorical columns say 'cat_feature3', then we use the default on it.
 
 #### PROS:
 - Provides full freedom to user to select encoders and columns
+- no changing of signature of forecasters
 
 #### CONS
 - Not tunable params because of set_config
 - Is implementing existing functionality(similar to `ColumnTransformer`) under the hood.
+
+Here we can also remove one con but at a cost:
+- instead of set_config pass the dict as an argument to the forecaster.
+- now it is tunable
+- but all forecaster signatures will get modified.
+
+Note: In this design, the user is allowed to specify encoders for the columns, but if there is no restriction, they can specify transformers as well(like minmaxscaler etc).
+This would be an additional ability we are adding to all estimators.
+
 
 ---
 ---

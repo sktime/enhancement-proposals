@@ -13,6 +13,28 @@ Allow users to pass exog data with categorical features to any forecaster. Outco
 * https://github.com/sktime/sktime/pull/6490 - pr adding feature_kind metadata
 
 
+### Conceptual model
+
+We will need to cover situations in which:
+
+1. data may contain one or both of categorical variables, numerical variables
+    * example: promotion type 1, 2, or no promotion in sales data
+2. specific estimators may support, or not natively support categorical variables.
+  We always assume estimators can support categorical variables
+    * example: `ARIMA` does not natively support categorical variables. Direct reduction to `HistGradBoost` does support
+      categoricals in endogenous and exogenous variables.
+3. specific estimators in upstream packages (3rd party estimators)
+  may have parameters that directly refer to the categorical
+  variables or subsets thereof. This may be something we want to expose to the user or not.
+    * example: `skforecast`, `categorical_features` variable
+4. categoricals, and support for, may appear in endogeneous, exogeneous data, or both.
+  It is more common that models support exogeneous categoricals than endogeneous ones.
+
+Challenge: a special situation arises if we build composites such as `make_reduction`.
+The component may or may not support categoricals, but that information may
+not be easily obtained from the interal estimator, e.g., `sklearn`.
+
+
 ### Sample data used in examples below
 ```python
 sample_data = {
@@ -27,8 +49,11 @@ X_train,X_test,y_train,y_test = temporal_train_test_split(y,X,0.5)
 ```
 
 ## Requirements
+
 1. Need to know whether categorical data is present in X_train and which columns.
+   * This is because point 1 in conceptual model.
 2. Need to know if forecaster has native categorical support.
+   * From point 2 in conceptual model
 3. In reduction, we need to know if model used has native categorical support.
 4. In reduction, we need to pass parameters(like `enable_categorical=True` in case of xgboost) to the model used if natively supported according to the requirements of the model.
 5. Must handle all combinations of cases
@@ -101,6 +126,20 @@ There are two broad ways to deal with this. Rest of the design will depend on th
 2) Perform internal encoding
     - a) use fixed default encoder
     - b) provide option to user on encoders to use and on which columns.
+
+
+1) raise error if mismatch
+
+2) hard coded handling
+  * drop
+  * one-hot
+  * other specific handling
+
+3) user choice in handling
+  * sub-decision: default or not
+     * sub-decision: if default, which, same as 2
+
+
 
 for the above cases there are even more combinations based on which solution we take for the subchallenge mentioned under requirement 1.(cat_features arg, no arg, set_config)
 There are too many designs due to the large combinations of solutions possible and they vary greatly depending on the above broad decision we take.

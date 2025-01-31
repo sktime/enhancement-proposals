@@ -60,18 +60,6 @@ Our proposed solution consists of the following components:
 
 ### Conceptual model: bar
 
-Conceptually, we want to model "distribution objects" that are probability distributions, taking values in `pandas.DataFrame`-s, possibly with hierarchical row index.
-
-For this, we need to keep track of the following information:
-
-* a batch/instance structure of the distribution, e.g., 2D matrix shape
-* distribution defining information, i.e., parameters of the distribution
-* row index and column index of the distribution, both `pd.Index`.
-
-Row and column index shape need to agree with the batch/instance shape of the distribution.
-
-Typically but not nececssarily, different rows will be independent, but different columns in the same row will not be independent.
-
 
 ### foo
 

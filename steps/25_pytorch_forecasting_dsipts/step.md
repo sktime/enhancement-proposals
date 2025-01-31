@@ -97,6 +97,7 @@ This starts at data that is already pre-processed, re-sampled, batched.
 * currently has two layers, a data layer and a model layer
 * data layer = D1 plus D2 plus M (lasagna) = `TimeSeriesDataSet`
 * model layer = T
+* `BaseModel` is similar to C, but assumes data layer
 * in particular, there is no uniformization layer for data or models that would cover, e.g., foundation models
 * this also makes the design of very limited extensibility beyond certain decoder/encoder models
 
@@ -111,12 +112,247 @@ This starts at data that is already pre-processed, re-sampled, batched.
     * and there is no model uniformization layer
 
 
-### foo
+### mid-level interfaces
+
+#### layer D1
+
+Aim: model `Panel` data as closely as possible, while satisfying data requirements
+
+Data requirements:
+
+* agnostic towards data location - `pandas`, `polars`, hard drive
+* capturing metadata: numeric/categorical, past/future known, dynamic/static
+
+Design:
+
+* `DataSet` extension API with unified `__getitem__` output, defined by `BaseTSDataSet`
+* `__init__` captures input that can vary
+    * for downwards capability, current inputs in `pytorch-forecasting` and `dsipts` supported
+* inheritance pattern and strategy pattern
+* simplest-as-possible `__getitem__` return
+
+##### interface: proposed `__getitem__` return of `BaseTSDataSet`
+
+As implemented in draft [PR 1757](https://github.com/sktime/pytorch-forecasting/pull/1757)
+
+```
+    Sampling via ``__getitem__`` returns a dictionary,
+    which always has following str-keyed entries:
+    * t: tensor of shape (n_timepoints)
+      Time index for each time point in the past or present. Aligned with ``y``,
+      and ``x`` not ending in ``f``.
+    * y: tensor of shape (n_timepoints, n_targets)
+      Target values for each time point. Rows are time points, aligned with ``t``.
+      Columns are targets, aligned with ``col_t``.
+    * x: tensor of shape (n_timepoints, n_features)
+      Features for each time point. Rows are time points, aligned with ``t``.
+    * group: tensor of shape (n_groups)
+      Group ids for time series instance.
+    * st: tensor of shape (n_static_features)
+      Static features.
+    * y_cols: list of str of length (n_targets)
+      Names of columns of ``y``, in same order as columns in ``y``.
+    * x_cols: list of str of length (n_features)
+      Names of columns of ``x``, in same order as columns in ``x``.
+    * st_cols: list of str of length (n_static_features)
+      Names of entries of ``st``, in same order as entries in ``st``.
+    * y_types: list of str of length (n_targets)
+      Types of columns of ``y``, in same order as columns in ``y``.
+      Types can be "c" for categorical, "n" for numerical.
+    * x_types: list of str of length (n_features)
+      Types of columns of ``x``, in same order as columns in ``x``.
+      Types can be "c" for categorical, "n" for numerical.
+    * st_types: list of str of length (n_static_features)
+      Types of entries of ``st``, in same order as entries in ``st``.
+    * x_k: list of int of length (n_features)
+      Whether the feature is known in the future, encoded by 0 or 1,
+      in same order as columns in ``x``.
+      0 means the feature is not known in the future, 1 means it is known.
+    Optionally, the following str-keyed entries can be included:
+    * t_f: tensor of shape (n_timepoints_future)
+      Time index for each time point in the future.
+      Aligned with ``x_f``.
+    * x_f: tensor of shape (n_timepoints_future, n_features)
+      Known features for each time point in the future.
+      Rows are time points, aligned with ``t_f``.
+    * weight: tensor of shape (n_timepoints), only if weight is not None
+    * weight_f: tensor of shape (n_timepoints_future), only if weight is not None
+```
+
+##### Extension pattern
+
+* inherit from `BaseTSDataSet`
+* custom `__init__` input, can be anything, including file locations
+* dataclass-like
+* logic only needs to comply with `__getitem__` expectation
+
+
+#### layer D2
+
+Aim: prepare unified data input from layer D1 for `torch` model
+
+Design:
+
+* `DataSet` extension API with unified `__init__` input, expecting `BaseTSDataSet`
+* further `__init__` fields may be arbitrarily present, dataclass-like
+* `__getitem__` return is specific to a limited range of `torch` models
+* default assumption is standard `DataLoader`
+* optionally, custom `DataLoader` may be supplied
+
+##### Example, based on current `pytorch-forecasting` models
+
+Current `TimeSeriesDataSet(data, **params)` to be replaced with
+
+```python
+tsd = PandasTSDataSet(df, **metadata)  # layer D1
+DecoderEncoderData(tsd, **params_without_metadata)  # layer D2
+```
+
+* where `metadata` is as above in layer D1
+* and `params_without_metadata` contains decoder/encoder specific variables
+    * `max_encoder_length`
+    * `min_encoder_length`
+    * `max_decoder_length`
+    * `min_decoder_length`
+    * `constant_fill_strategy`
+    * `allow_missing_timesteps`
+    * `lags`
+    * and so on
+
+The return of the `DecoderEncoderData` instance` should be exactly the same
+as of current `TimeSeriesDataSet`, when invoked with equivalent parameters and data.
+
+##### Example, based on current `dsip-ts` models
+
+For custom data, this should work
+
+```python
+tsd = PandasTSDataSet(df, **metadata)  # layer D1
+DsiptsPipeline(tsd, **params_without_metadata)  # layer D2
+```
+
+For pre-defined datasets, this should work
+
+```python
+tsd = BenchmarkDataSet(name:str, config)  # layer D1
+DsiptsPipeline(tsd, **params_without_metadata)  # layer D2
+```
+
+#### layer T
+
+The model layer contains layers and full models using `pytorch-lightning` interfaces.
+
+These are simple loose classes as currently present in all packages, i.e., `nn.Module` subclasses.
+
+
+#### layer M
+
+Some unknowns here and work in progress.
+
+Suggested design:
+
+* class design: metadata class with pointer to layer T and D2, plus metadata
+* `scikit-base` compatible collection of parameters
+    * neural network parameters (`torch.nn`)
+    * training and inference parameters
+* switch between training and inference mode
+* directly interfaces with layer D1 on the outside
+    * possibility to construct `from_dataset` or similar, like in ptf
+
+
+```python
+class MyNetwork(BasePtfNetwork):
+
+    _tags = {
+        "capability:categorical": True,
+        "capability:futureknown": False,
+        "capability:static": False,
+        "etc"
+    }
+
+    def __init__(
+        self,
+        **network_params,
+        **network_configs,
+        **loader_params,
+    )
+
+    def ref_network(self):  # pointer to network, could be more complicated
+        from somewhere import MyTorchNetwork
+
+        return MyTorchNetwork
+
+    def ref_dataloader(self):  # pointer to dataloader
+        from somewhere import D2LoaderForMyTorchnetwork
+
+        return D2LoaderForMyTorchnetwork
+
+    @classmethod
+    def from_dataset(cls, dataset):  # sets parameters from dataset
+        return cls(**get_params_from(dataset))
+
+    def should_we_forward_lignthing_methods(self, **kwargs):  # ?
+
+    def train(self, dataset):
+        # logic related to training
+
+    def predict(self, dataset)
+        # logic related to inference
+```
+
 
 ## Change and deprecation
 
-### Change of foo
+### `pytorch-forecasting`
+
+* Networks can be left as-is mostly, for downwards compatibility
+
+* `TimeSeriesDataSet` should alias this, see above
+
+```python
+tsd = PandasTSDataSet(df, **metadata)  # layer D1
+DecoderEncoderData(tsd, **params_without_metadata)  # layer D2
+```
+
+It should be possible to keep interfaces as-is with this aliasing.
+
+### `dsip-ts`
+
+* need to introduce a D1-to-D2 `DataSet`
+* current pipeline can still be used
 
 ## Implementation phases
 
-### Phase 1 - bar
+### Phase 0 - design
+
+Agreement on this design document and target state
+
+### Phase 1 - `DataSet` layer
+
+Suggested to use `pytorch-forecasting` and introduce D1/D2 separation as an API
+preserving refactor of `TimeSeriesDataSet`, as follows:
+
+1. add D1 `BaseTSDataSet` and `PandasTSDataSet` child class, and tests
+2. add `DecoderEncoderData` to obtain interface on par with `TimeSeriesDataSet`
+3. change `TimeSeriesDataSet` to alias the D1/D2 composite
+4. add one or two further `BaseTSDataSet` as proof-of-concept: `polars` or hard drive files
+    * use this to improve `DecoderEncoderData` to avoid too high in-memory usage
+
+
+### Phase 2a - `dsipts` `DataSet` layer integration
+
+Can start in middle of phase 1, at a stage where `BaseTsDataSet` is consolidated.
+
+1. refactor current data pipeline to be a single `DataSet` class.
+2. rebase pipeline on `BaseTSDataSet` interface, ensure refactor and API consistency
+
+### Phase 2b - Model layer
+
+1. `BasePtfNetwork` experimental design and full API tests, using phase 1 objects
+2. refactor at least two `pytorch-forecasting` models to this design, design iteration
+
+### Phase 3 - ecosystem
+
+* `dsip-ts` models
+* `pytorch-forecasting` models
+* `thuml` models

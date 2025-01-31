@@ -301,6 +301,27 @@ class MyNetwork(BasePtfNetwork):
 ```
 
 
+#### usage vignette
+
+should maybe center more around the data loader
+
+```python
+
+data_loader = my_class(configs).get_dataloader(more_configs)
+
+# need training and validation data loader separately
+data_loader_validation = my_class(configs).get_dataloader(more_configs)
+
+```
+
+action AG - can you write a speculative usage vignette?
+
+Let us use `lightning` as much as possible?
+
+Change the class as necessary
+
+
+
 ## Change and deprecation
 
 ### `pytorch-forecasting`

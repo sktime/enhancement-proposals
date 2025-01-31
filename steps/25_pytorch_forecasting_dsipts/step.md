@@ -109,7 +109,7 @@ This starts at data that is already pre-processed, re-sampled, batched.
 * model layer = T
 * improvement compared to `pytorch-forecasting`, because there is a data uniformization layer
     * but unfortunately D1 is not in the form of `DataSet` which would allow scaling
-    * and there is no model uniformization layer
+    * model uniformization layer from layer D2, but not D1
 
 
 ### mid-level interfaces

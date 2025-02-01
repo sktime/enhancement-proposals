@@ -112,7 +112,7 @@ This starts at data that is already pre-processed, re-sampled, batched.
     * model uniformization layer from layer D2 onwards, but not D1
 
 
-### mid-level interfaces
+### mid-level interface designs
 
 #### layer D1
 

@@ -23,7 +23,7 @@ At the same time, the `dsip-ts` package (by agobbifbk) emerged, contributing int
 of API uniformity, and a simple API.
 
 It was decided that both packages - `pytorch-forecasting` and `dsip-ts` - would merge
-with the aim to creat `pytorch-forecasting` - as the "sktime" of `torch` forecasting models.
+with the aim to create `pytorch-forecasting v2` - as the "sktime" of `torch` forecasting models.
 
 References:
 
@@ -97,7 +97,7 @@ This starts at data that is already pre-processed, re-sampled, batched.
 * currently has two layers, a data layer and a model layer
 * data layer = D1 plus D2 plus M (lasagna) = `TimeSeriesDataSet`
 * model layer = T
-* `BaseModel` is similar to C, but assumes data layer
+* `BaseModel` is similar to M, but assumes data layer
 * in particular, there is no uniformization layer for data or models that would cover, e.g., foundation models
 * this also makes the design of very limited extensibility beyond certain decoder/encoder models
 
@@ -109,7 +109,7 @@ This starts at data that is already pre-processed, re-sampled, batched.
 * model layer = T
 * improvement compared to `pytorch-forecasting`, because there is a data uniformization layer
     * but unfortunately D1 is not in the form of `DataSet` which would allow scaling
-    * model uniformization layer from layer D2, but not D1
+    * model uniformization layer from layer D2 onwards, but not D1
 
 
 ### mid-level interfaces
@@ -134,6 +134,8 @@ Design:
 ##### interface: proposed `__getitem__` return of `BaseTSDataSet`
 
 As implemented in draft [PR 1757](https://github.com/sktime/pytorch-forecasting/pull/1757)
+
+Precise specs to be discussed.
 
 ```
     Sampling via ``__getitem__`` returns a dictionary,

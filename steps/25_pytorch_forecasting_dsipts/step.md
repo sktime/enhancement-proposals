@@ -262,6 +262,17 @@ Suggested design:
     * possibility to construct `from_dataset` or similar, like in ptf
 
 
+
+
+
+
+action AG - can you write a speculative usage vignette?
+
+Let us use `lightning` as much as possible?
+
+Change the class as necessary
+
+
 ```python
 import pytorch_lightning as pl
 
@@ -271,7 +282,7 @@ class BasePtfNetwork(pl.LightningModule):
     def forward(self, batch:dict)-> torch.tensor: 
       ##THE FORWARD LOOP MUST BE DEFINE FOR EACH MODEL
 
-    def inference(self, batch:dict)->torch.tensor:
+    def predict(self, batch:dict)->torch.tensor:
         return self(batch) #USUALLY inference = forward
         
     def configure_optimizers(self):
@@ -381,7 +392,7 @@ class MyNetwork(BasePtfNetwork):
       return tensor_output ## also the output is  standard (in DSIPTS Bs x Len x Channels x MUL --> MUL can be 1 or 3 depending if we use quantile loss
 
     ##SOME MODELS NEEDS TO OVERWRITE SOME BASIC METHODS
-    def inference(self, batch)
+    def predict(self, batch): ##usually predict is the same as forward!
       ##maybe some different respect to forward (generative models?)
 
     def should_we_forward_lignthing_methods(self, **kwargs):  # ? --> NOT NEEDED
@@ -389,8 +400,7 @@ class MyNetwork(BasePtfNetwork):
     def train(self, dataset): #--> NOT NEEDED, we use keywords by PL
         # logic related to training
 
-    def predict(self, dataset) #--> NOT NEEDED, we use keywords by PL
-        # logic related to inference
+
 ```
 
 
@@ -398,36 +408,79 @@ class MyNetwork(BasePtfNetwork):
 SEE the class before (JUST AN IDEA)
 should maybe center more around the data loader
 
+#### train
 ```python
 
-data_loader = my_class(configs).get_dataloader(more_configs)
 
+
+data_loader = my_class(configs).get_dataloader(more_configs)
 # need training and validation data loader separately
 data_loader_validation = my_class(configs).get_dataloader(more_configs)
 
- trainer = pl.Trainer(default_root_dir=dirpath, ##where to save stuff
+##this is a good callback for saving the weights
+checkpoint_callback = ModelCheckpoint(dirpath=dirpath, ##where to save stuff
+                              monitor='val_loss', ##usually monitoring validation loss is a good idea (train may overfit)
+                              save_last = True, #save last checkpoint
+                              every_n_epochs =1,
+                              verbose = verbose,
+                              save_top_k = 1, #save only the best!
+                              filename='checkpoint')
+
+
+
+trainer = pl.Trainer(default_root_dir=dirpath, ##where to save stuff
                              logger = aim_logger, ## logger to use
                              callbacks=[checkpoint_callback,mc], ## callbacks to call
                              auto_lr_find=auto_lr_find, ## this can be useful
                              other_parameters #(gpu, worksers, accelerators for computations)
                   )
 
-        if auto_lr_find:
-            trainer.tune(self.model,train_dataloaders=train_dl,val_dataloaders = valid_dl)
-            files = os.listdir(dirpath)
-            for f in files:
-                if '.lr_find' in f: ##PL saves some tmp file
-                    os.remove(os.path.join(dirpath,f))
- 
-        trainer.fit(self.model, data_loader,data_loader_validation) ##just what you need for the training part
+if auto_lr_find:
+    trainer.tune(model,train_dataloaders=train_dl,val_dataloaders = valid_dl)
+    files = os.listdir(dirpath)
+    for f in files:
+        if '.lr_find' in f: ##PL saves some tmp file
+            os.remove(os.path.join(dirpath,f))
 
+##I think we can load HERE some pretrained weights and do only finetuning
+model = model.load_from_checkpoint(pretrained_path)
+
+trainer.fit(model, data_loader,data_loader_validation) ##just what you need for the training part
+
+self.checkpoint_file_best = checkpoint_callback.best_model_path #save where the checkpoints are
+self.checkpoint_file_last = checkpoint_callback.last_model_path #save where the checkpoints are
+
+##here we may need to save other metadata of the model: scalers etc
+```
+##### inference
+
+```python
+#####load the model
+model = MyNetwork(**config_to_use)
+if load_last:
+  weight_path = os.path.join(self.checkpoint_file_last) 
+else:
+  weight_path = os.path.join(self.checkpoint_file_best) 
+model = model.load_from_checkpoint(weight_path)
 ```
 
-action AG - can you write a speculative usage vignette?
+```python
+#####use test set or new data
+data_loader_test = my_class(configs).get_dataloader(more_configs_no_shuffle_no_drop) ##--> same as before, in the batch there is the time! 
+res = []
+real = []
+for batch in data_loader_test :
+  res.append(model.inference(batch).cpu().detach().numpy())
+  real.append(batch['y'].cpu().detach().numpy()) ##if in the test set, otherwise we don't have this key!
+  res = np.vstack(res)
+  real = np.vstack(real)
+  time = dl.dataset.t #time is in the dataloader!
+  groups = dl.dataset.groups  #group are in the dataloader!
 
-Let us use `lightning` as much as possible?
+#here really depends on what you want to produce (pandas dataframe, polars, etc) and depends on the organization of the batches. In DSIPTS we have a ugly-to-see-but-working procedure that provides the output
+```
 
-Change the class as necessary
+
 
 
 

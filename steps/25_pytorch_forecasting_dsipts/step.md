@@ -263,6 +263,85 @@ Suggested design:
 
 
 ```python
+import pytorch_lightning as pl
+
+
+class BasePtfNetwork(pl.LightningModule):
+    @abstractmethod
+    def forward(self, batch:dict)-> torch.tensor: 
+      ##THE FORWARD LOOP MUST BE DEFINE FOR EACH MODEL
+
+    def inference(self, batch:dict)->torch.tensor:
+        return self(batch) #USUALLY inference = forward
+        
+    def configure_optimizers(self):
+        ##Lightning stuff
+
+
+    def training_step(self, batch, batch_idx):
+        ## Lightning does a lot of stuff automatically, (backward, etc) BUT sometimes you need to set  self.automatic_optimization = False and do manually the backward (EXAMPLE SAM) 
+        if self.has_sam_optim:
+            
+            opt = self.optimizers()
+            def closure():
+                opt.zero_grad()
+                y_hat = self(batch)
+                loss = self.compute_loss(batch,y_hat)
+                self.manual_backward(loss)
+                return loss
+
+            opt.step(closure)
+            y_hat = self(batch)
+            loss = self.compute_loss(batch,y_hat)
+      
+        else:
+            y_hat = self(batch)
+            loss = self.compute_loss(batch,y_hat) ##DO NOT BACKWARD, pl will do for you
+        return loss
+
+    
+    def validation_step(self, batch, batch_idx):
+        ##return the loss  self.compute_loss(batch,y_hat)
+        ## but you can logg something for example (IN DSIPTS WE USE AIM)
+        y_hat = self(batch)
+        if batch_idx==0:
+            if self.use_quantiles:
+                idx = 1
+            else:
+                idx = 0
+            #track the predictions! We can do better than this but maybe it is better to firstly update pytorch-lightening 
+            if self.count_epoch%int(max(self.trainer.max_epochs/100,1))==1:
+
+                for i in range(batch['y'].shape[2]):
+                    real =  batch['y'][0,:,i].cpu().detach().numpy()
+                    pred =  y_hat[0,:,i,idx].cpu().detach().numpy()
+                    fig, ax = plt.subplots(figsize=(7,5))  
+                    ax.plot(real,'o-',label='real')
+                    ax.plot(pred,'o-',label='pred')
+                    ax.legend()
+                    ax.set_title(f'Channel {i} first element first batch validation {int(100*self.count_epoch/self.trainer.max_epochs)}%')
+                    self.logger.experiment.track(Image(fig), name='cm_training_end')
+                    #self.log(f"example_{i}", np.stack([real, pred]).T,sync_dist=True)
+
+        return self.compute_loss(batch,y_hat)
+
+
+    def validation_epoch_end(self, outs):
+        ##loggin stuff
+        loss = torch.stack(outs).mean()
+        self.log("val_loss", loss.item(),sync_dist=True)
+        logging.info(f'Epoch: {self.count_epoch} train error: {self.train_loss_epoch:.4f} validation loss: {loss.item():.4f}')
+
+    def training_epoch_end(self, outs):
+        #log again
+        loss = sum(outs['loss'] for outs in outs) / len(outs)
+        self.log("train_loss", loss.item(),sync_dist=True)
+        self.count_epoch+=1    
+        self.train_loss_epoch = loss.item()
+
+    def compute_loss(self,batch,y_hat):
+      ## IN DSIPTS we have a dozen of different losses
+
 class MyNetwork(BasePtfNetwork):
 
     _tags = {
@@ -278,33 +357,45 @@ class MyNetwork(BasePtfNetwork):
         **network_configs,
         **loader_params,
     )
+      
+    ##HERE USUALLY THERE ARE THE LAYERS DEFINITION
 
-    def ref_network(self):  # pointer to network, could be more complicated
+    def ref_network(self):  # pointer to network, could be more complicated mmh this is a CS stuff, not able to answer which is the best solution
         from somewhere import MyTorchNetwork
 
         return MyTorchNetwork
 
-    def ref_dataloader(self):  # pointer to dataloader
+    def ref_dataloader(self):  # pointer to dataloader  --> I don't like a to put here the dataloader. If we use PL we need to pass it to the trainer. We can also decide to use pure pytroch but we will miss some good features of PL
         from somewhere import D2LoaderForMyTorchnetwork
 
         return D2LoaderForMyTorchnetwork
 
     @classmethod
-    def from_dataset(cls, dataset):  # sets parameters from dataset
+    def from_dataset(cls, dataset):  # sets parameters from dataset  --> see before
         return cls(**get_params_from(dataset))
 
-    def should_we_forward_lignthing_methods(self, **kwargs):  # ?
+    # Since the most of the logic is in the base class we need only to write the forward loop
 
-    def train(self, dataset):
+    def forward(self, batch):##--> batch are suppose to be standardize!
+
+      return tensor_output ## also the output is  standard (in DSIPTS Bs x Len x Channels x MUL --> MUL can be 1 or 3 depending if we use quantile loss
+
+    ##SOME MODELS NEEDS TO OVERWRITE SOME BASIC METHODS
+    def inference(self, batch)
+      ##maybe some different respect to forward (generative models?)
+
+    def should_we_forward_lignthing_methods(self, **kwargs):  # ? --> NOT NEEDED
+
+    def train(self, dataset): #--> NOT NEEDED, we use keywords by PL
         # logic related to training
 
-    def predict(self, dataset)
+    def predict(self, dataset) #--> NOT NEEDED, we use keywords by PL
         # logic related to inference
 ```
 
 
 #### usage vignette
-
+SEE the class before (JUST AN IDEA)
 should maybe center more around the data loader
 
 ```python
@@ -313,6 +404,22 @@ data_loader = my_class(configs).get_dataloader(more_configs)
 
 # need training and validation data loader separately
 data_loader_validation = my_class(configs).get_dataloader(more_configs)
+
+ trainer = pl.Trainer(default_root_dir=dirpath, ##where to save stuff
+                             logger = aim_logger, ## logger to use
+                             callbacks=[checkpoint_callback,mc], ## callbacks to call
+                             auto_lr_find=auto_lr_find, ## this can be useful
+                             other_parameters #(gpu, worksers, accelerators for computations)
+                  )
+
+        if auto_lr_find:
+            trainer.tune(self.model,train_dataloaders=train_dl,val_dataloaders = valid_dl)
+            files = os.listdir(dirpath)
+            for f in files:
+                if '.lr_find' in f: ##PL saves some tmp file
+                    os.remove(os.path.join(dirpath,f))
+ 
+        trainer.fit(self.model, data_loader,data_loader_validation) ##just what you need for the training part
 
 ```
 

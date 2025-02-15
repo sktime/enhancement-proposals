@@ -19,7 +19,7 @@ This STEP is about finalizing a good interface for:
 
 References:
 
-* conceptial design issue: https://github.com/sktime/sktime/issues/6580
+* conceptual design issue: https://github.com/sktime/sktime/issues/6580
 * umbrella issue foundation models: https://github.com/sktime/sktime/issues/6177
 * newer issue: https://github.com/sktime/sktime/issues/7838
 

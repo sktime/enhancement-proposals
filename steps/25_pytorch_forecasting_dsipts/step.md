@@ -140,45 +140,22 @@ Precise specs to be discussed.
 ```
     Sampling via ``__getitem__`` returns a dictionary,
     which always has following str-keyed entries:
-    * t: tensor of shape (n_timepoints)
+
+    * ``t``: np.array of shape (n_timepoints), of type ``np.int64``, ``np.float64``, or ``np.datetime64``.
       Time index for each time point in the past or present. Aligned with ``y``,
-      and ``x`` not ending in ``f``.
-    * y: tensor of shape (n_timepoints, n_targets)
+      and ``x``.
+    * ``y``: tensor of shape (n_timepoints, n_targets)
       Target values for each time point. Rows are time points, aligned with ``t``.
-      Columns are targets, aligned with ``col_t``.
-    * x: tensor of shape (n_timepoints, n_features)
+    * ``x``: tensor of shape (n_timepoints, n_features)
       Features for each time point. Rows are time points, aligned with ``t``.
-    * group: tensor of shape (n_groups)
-      Group ids for time series instance.
-    * st: tensor of shape (n_static_features)
+    * ``group``: tensor of shape (n_groups)
+      Group identifiers for time series instances.
+    * ``st``: tensor of shape (n_static_features)
       Static features.
-    * y_cols: list of str of length (n_targets)
-      Names of columns of ``y``, in same order as columns in ``y``.
-    * x_cols: list of str of length (n_features)
-      Names of columns of ``x``, in same order as columns in ``x``.
-    * st_cols: list of str of length (n_static_features)
-      Names of entries of ``st``, in same order as entries in ``st``.
-    * y_types: list of str of length (n_targets)
-      Types of columns of ``y``, in same order as columns in ``y``.
-      Types can be "c" for categorical, "n" for numerical.
-    * x_types: list of str of length (n_features)
-      Types of columns of ``x``, in same order as columns in ``x``.
-      Types can be "c" for categorical, "n" for numerical.
-    * st_types: list of str of length (n_static_features)
-      Types of entries of ``st``, in same order as entries in ``st``.
-    * x_k: list of int of length (n_features)
-      Whether the feature is known in the future, encoded by 0 or 1,
-      in same order as columns in ``x``.
-      0 means the feature is not known in the future, 1 means it is known.
+
     Optionally, the following str-keyed entries can be included:
-    * t_f: tensor of shape (n_timepoints_future)
-      Time index for each time point in the future.
-      Aligned with ``x_f``.
-    * x_f: tensor of shape (n_timepoints_future, n_features)
-      Known features for each time point in the future.
-      Rows are time points, aligned with ``t_f``.
-    * weight: tensor of shape (n_timepoints), only if weight is not None
-    * weight_f: tensor of shape (n_timepoints_future), only if weight is not None
+    * ``w``: tensor of shape (n_timepoints)
+      Weights, aligned with ``t``.
 ```
 
 ##### Extension pattern
@@ -262,15 +239,7 @@ Suggested design:
     * possibility to construct `from_dataset` or similar, like in ptf
 
 
-
-
-
-
-action AG - can you write a speculative usage vignette?
-
-Let us use `lightning` as much as possible?
-
-Change the class as necessary
+##### Speculative user vignette
 
 
 ```python

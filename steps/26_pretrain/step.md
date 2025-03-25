@@ -77,12 +77,12 @@ be part of a zero-shot or fine-tuning algorithm.
 Presenting user facing API. For delineation against current designs:
 
 * no new arguments are added to `predict`-like methods
-* a flag is added before or at `fit` to determine whether usage is normal fitting, or pre-training.
-    * two vignettes are presented that pass this information on, for discussion.
+* a new `pretrain` method is added which can be called before `fit`
+
 
 ### basic usage vignette
 
-Illustrated for global forecasting.
+An alternative idea would be adding an new method
 
 ```python
 
@@ -90,15 +90,10 @@ y_pretrain, X_pretrain = load_pretrain_data()
 
 f = MyForecasterCls(params)
 
-f.pretrain()
-
-f.fit(y=y_pretrain, X=X_pretrain)
-
-# fh is optional, but some models require this
-
-f.pretrain("off")
+f.pretrain(y=y_pretrain, X=X_pretrain)
 
 # usual vignette starts here
+
 y, X = load_data()
 
 f.fit(y, X, fh=[1, 2, 3])
@@ -106,6 +101,8 @@ f.fit(y, X, fh=[1, 2, 3])
 f.predict()
 f.predict_intervals()
 ```
+
+
 
 With optional serialization after pre-training:
 
@@ -145,7 +142,7 @@ f.predict_intervals()
 
 ### Alternative vignette 2
 
-An alternative idea would be adding an new method
+An alternative idea would be adding an flag switcher method, similar to vignette 1
 
 ```python
 
@@ -153,10 +150,15 @@ y_pretrain, X_pretrain = load_pretrain_data()
 
 f = MyForecasterCls(params)
 
-f.pretrain(y=y_pretrain, X=X_pretrain)
+f.pretrain()
+
+f.fit(y=y_pretrain, X=X_pretrain)
+
+# fh is optional, but some models require this
+
+f.pretrain("off")
 
 # usual vignette starts here
-
 y, X = load_data()
 
 f.fit(y, X, fh=[1, 2, 3])
@@ -188,9 +190,9 @@ Estimators get a third state, from two:
     * definition: directly after `__init__`
     * even if a pretrained neural network is constructed with a checkpoint reference, we consider the `sktime` model a blueprint.
 * pretrained (new)
-    * definition: pretrained attributes are present, at least one call of `fit` in pretrain mode
+    * definition: pretrained attributes are present, at least one call `pretrain`
 * fitted
-    * at least one call of `fit` in normal mode.
+    * at least one call of `fit`
 
 The definition of pretrained is: pretrained attributes are present, definition as below.
 
@@ -204,7 +206,7 @@ Pretrained attributes, by convention, start with an underscore and end in an und
 
 They should not be present after `__init__`.
 
-A `fit` (or `pretrain`) call may write only to pretrained attributes.
+A `pretrain` call may write only to pretrained attributes.
 
 An attribute `_is_pretrained` is added, this tracks whether the model is pretrained.
 
@@ -232,9 +234,7 @@ usage:
 
 f = MyDLmodel(checkpoint=my_ckpt_path)
 
-f.pretrain()
-
-f.fit(y)
+f.pretrain(y)
 
 f.save_checkpoint(my_new_ckpt_path)
 

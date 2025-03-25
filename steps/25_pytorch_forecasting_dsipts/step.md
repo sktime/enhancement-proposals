@@ -130,6 +130,7 @@ Design:
     * for downwards capability, current inputs in `pytorch-forecasting` and `dsipts` supported
 * inheritance pattern and strategy pattern
 * simplest-as-possible `__getitem__` return
+* extracts metadata upon `__init__`
 
 ##### interface: proposed `__getitem__` return of `BaseTSDataSet`
 
@@ -159,6 +160,30 @@ Precise specs to be discussed.
     * ``cutoff``: 0-dimensional ``np.int64``, ``np.float64``, or ``np.datetime64``, same as type of ``t``.
     If not provided, assumed to be latest time point in the data set.
 ```
+
+##### interface design - metadata fields
+
+The `BaseTSDataSet` has a `metadata` attribute.
+
+It is a `dict` and gets populated upon `__init__`, with (keys/values):
+
+```
+    * ``cols``: dict { 'y': list[str], 'x': list[str], 'st': list[str] }
+      Names of columns for y, x, and static features.
+      List elements are in same order as column dimensions.
+      Columns not appearing are assumed to be named (x0, x1, etc.),
+      (y0, y1, etc.), (st0, st1, etc.).
+    * ``col_type``: dict[str, str]
+      maps column names to data types "F" (numerical) and "C" (categorical).
+      Column names not occurring are assumed "F".
+    * ``col_known``: dict[str, str]
+      maps column names to "K" (future known) or "U" (future unknown).
+      Column names not occurring are assumed "K".
+```
+
+We could add more fields here, if easily doable for all extensions (below)
+with minimal compute and memory overhead.
+
 
 ##### Extension pattern
 

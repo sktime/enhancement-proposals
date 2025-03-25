@@ -155,7 +155,9 @@ Precise specs to be discussed.
 
     Optionally, the following str-keyed entries can be included:
     * ``w``: tensor of shape (n_timepoints)
-      Weights, aligned with ``t``.
+      Weights, aligned with ``t``. If not provided, assumed to be equal weights.
+    * ``cutoff``: 0-dimensional ``np.int64``, ``np.float64``, or ``np.datetime64``, same as type of ``t``.
+    If not provided, assumed to be latest time point in the data set.
 ```
 
 ##### Extension pattern

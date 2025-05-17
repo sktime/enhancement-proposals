@@ -1,4 +1,6 @@
+# Hyperactive unified API for optimizers
 
+Contributors: ["fkiraly", "simonblanke"]
 
 ## Motivation
 
@@ -361,8 +363,6 @@ def run(self):
     best_params : dict
         dict with keys as experiment paramnames (or subste thereof)
 ```
-
-
 
 ### Design - sklearn integration
 

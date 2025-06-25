@@ -19,7 +19,7 @@ In general, the user will be interested in a specific timeseries task: Forecasti
 
 ## Proposed information architecture
 
-Home | Get Started ▾ | Tutorial | How-to | Estimator Overview | API Reference | More ▾
+Home | Get Started | Tutorial | How-to | Estimator Overview | API Reference | More ▾
 
 
 ### Get started
@@ -35,6 +35,7 @@ Learning-oriented docs, focused on the basics and to make the user learn sktime 
 * Forecasting
     * Forecasting univariate timeseries
     * Transformations and compositions
+    * Probabilistic forecasting
     * Forecast panel datasets, broadcasting
     * Forecasting hierarchical data
     * Forecasting with scikit-learn like regressors
@@ -60,14 +61,10 @@ Goal oriented documentations, recipes, for users that already have certain knowl
     * regressors
     * anomaly detectors
 * How-to benchmark different models
+* How-to cross-validate global models
 
 
 ### Reference
 
 Standard API reference
 
-### Explanation
-
-Explain motivation of choices, architecture design and different aspects of the library.
-
-* Why `y`, `X` and `fh` and not a single dataframe as data in the API?

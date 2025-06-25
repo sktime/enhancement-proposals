@@ -19,7 +19,7 @@ In general, the user will be interested in a specific timeseries task: Forecasti
 
 ## Proposed information architecture
 
-Home | Get Started ▾ | User Guide | Examples | API Reference | Contribute ▾ | More ▾
+Home | Get Started ▾ | Tutorial | How-to | Estimator Overview | API Reference | More ▾
 
 
 ### Get started
@@ -28,3 +28,45 @@ Home | Get Started ▾ | User Guide | Examples | API Reference | Contribute ▾ 
 * 5-min quick start for any of the 4 tasks (Forecasting, Classification, Clustering, Regression)
 * Why sktime? Showcase the motivation of sktime, and why to use it, the benefits of its APIs and community
 
+### Tutorial
+
+Learning-oriented docs, focused on the basics and to make the user learn sktime API.
+
+* Forecasting
+    * Forecasting univariate timeseries
+    * Transformations and compositions
+    * Forecast panel datasets, broadcasting
+    * Forecasting hierarchical data
+    * Forecasting with scikit-learn like regressors
+    * Global and zero-shot forecasting
+* Anomaly, segmentation
+* Classification
+* Clustering
+* Regression
+
+These documentations should feel like a learning experience, focused on learning and for new users and the ones that want a deep understanding
+
+
+### How-to
+
+Goal oriented documentations, recipes, for users that already have certain knowledge about sktime framework.
+
+* How-to create an AutoML pipeline
+* How-to tune hyperparameters
+* How-to create custom:
+    * forecasters
+    * classifiers
+    * regressors
+    * anomaly detectors
+* How-to benchmark different models
+
+
+### Reference
+
+Standard API reference
+
+### Explanation
+
+Explain motivation of choices, architecture design and different aspects of the library.
+
+* Why `y`, `X` and `fh` and not a single dataframe as data in the API?

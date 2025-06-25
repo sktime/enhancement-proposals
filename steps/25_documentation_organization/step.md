@@ -39,6 +39,7 @@ Learning-oriented docs, focused on the basics and to make the user learn sktime 
     * Forecasting hierarchical data
     * Forecasting with scikit-learn like regressors
     * Global and zero-shot forecasting
+    * Using polars and dask with sktime
 * Anomaly, segmentation
 * Classification
 * Clustering

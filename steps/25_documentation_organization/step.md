@@ -19,7 +19,7 @@ In general, the user will be interested in a specific timeseries task: Forecasti
 
 ## Proposed information architecture
 
-Home | Get Started | Tutorial | How-to | Estimator Overview | API Reference | More ▾
+Home | Get Started | Tutorial | How-to | Estimator Overview | API Reference | Get Involved | More ▾
 
 
 ### Get started
@@ -70,11 +70,14 @@ Goal oriented documentations, recipes, for users that already have certain knowl
 
 Standard API reference
 
+### Get Involved
+
+Description of the governance model and how to contribute, benefits of contributing.
+
 
 ### More
 
 Here, we could include the following menus:
 
-* Get Involved
 * Development
 * About

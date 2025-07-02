@@ -40,7 +40,7 @@ Learning-oriented docs, focused on the basics and to make the user learn sktime 
     * Forecasting hierarchical data
     * Forecasting with scikit-learn like regressors
     * Global and zero-shot forecasting
-    * Using polars and dask with sktime
+    * Machine-types (mtypes) and Scientific Types (scitypes)
 * Anomaly, segmentation
 * Classification
 * Clustering
@@ -60,11 +60,21 @@ Goal oriented documentations, recipes, for users that already have certain knowl
     * classifiers
     * regressors
     * anomaly detectors
+* How-to use clustering with forecasters
 * How-to benchmark different models
 * How-to cross-validate global models
+
 
 
 ### Reference
 
 Standard API reference
 
+
+### More
+
+Here, we could include the following menus:
+
+* Get Involved
+* Development
+* About

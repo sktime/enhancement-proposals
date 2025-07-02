@@ -22,6 +22,20 @@ In general, the user will be interested in a specific timeseries task: Forecasti
 Home | Get Started | Tutorial | How-to | Estimator Overview | API Reference | Get Involved | More ▾
 
 
+### Home
+
+This is what users see first when they access sktime's documentation. We should highlight the versatility of the package. A suggestion would be highlighting how one can change `NaiveForecaster` to `Chronos`/`NBEATS` in 1 line of code to produce forecasts with a state-of-the-art model.
+
+We could also have links for the different personas, e.g.:
+
+
+* New to timeseries forecasting? Go to the univariate forecasting tutorial
+* Researcher? Check-out how to benchmark your models
+* Scikit-learn user? Learn how to use regressors for forecasting
+* Want to contribute? Check-out the contributing guidelines
+
+Also adding discord, linkedin urls.
+
 ### Get started
 
 * Installation

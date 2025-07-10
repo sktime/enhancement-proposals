@@ -86,41 +86,43 @@ Learning-oriented docs, focused on the basics and to make the user learn sktime 
         * Detail briefly probabilistic forecasting behaviour with compositions
         * Metrics for probabilistic forecasting
         * Conformal wrappers and boostrapping
-    * Forecasting multiple series (panel datasets)
+    * Forecasting multiple series (panel datasets) (15 min)
         * Use a dataset with panel data, but not that large. Something that can be easily executed in a computer, < 1 min for fitting
         * Motivation
         * Details of pandas dataframe structure, and useful operations
         * Call of `fit` and `predict` with a simple univariate model
         * Demonstration of `.forecasters_` attribute
         * Metrics for panel data (aggregation)
-    * Forecasting with scikit-learn like regressors
+        * Conclusion and connection to global forecasting
+    * Forecasting with scikit-learn like regressors (15 min)
         * dataset loading
         * `window_summarizer`, `make_reduction`
         * Why differencing can be useful: capturing the trend
         * Pipeline of transformations + reduction
         * `get_params` and its recursive behaviour
-    * Global and zero-shot forecasting
+    * Global and zero-shot forecasting (15 min)
         * Definition of global forecasting
         * Global forecasting with Reduction Forecasters
         * Global forecasting with Deep Learning
         * Zero-shot forecasting
-    * Hierarchical forecasting
+    * Hierarchical forecasting (15 min)
         * Context of the problem
         * Reconciliation strategies
         * Reconciliation transformations (new API)
         * ReconcileForecaster and mint
-        * Multiplex Forecaster and tuning of reconciliation
-    * Machine-types (mtypes) and Scientific Types (scitypes)
+    * Machine-types (mtypes) and Scientific Types (scitypes) (10 min)
         * What are mtypes and scitypes
         * How to use polars with sktime
-* Detection
+* Detection and segmentation
     * Anomaly Detection
     * Changepoint detection
+    * Segmentation
 * Classification
     * Introduction to timeseries classification
     * Advanced Classification methods
 * Clustering
 * Regression
+
 
 These documentations should feel like a learning experience, focused on learning and for new users and the ones that want a deep understanding
 
@@ -140,7 +142,10 @@ Goal oriented documentations, recipes, for users that already have certain knowl
 * How-to benchmark different models
 * How-to cross-validate global models
 
+## Examples
 
+Examples should be application oriented, end-to-end.
+We could temporarily leave the existing notebooks here, to be removed after the refactoring is completed
 
 ### Reference
 

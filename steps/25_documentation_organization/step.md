@@ -15,7 +15,7 @@ We can identify the following personas:
 * **User D**: OSS contributor, Python developer
 * **User E**: familiar to other timeseries packages, want to compare and get to know sktime.
 
-In general, the user will be interested in a specific timeseries task: Forecasting, Classification, Clustering, or Regression.
+In general, the user will be interested in a specific timeseries task: Forecasting, Classification, Clustering, Detection, or Regression.
 
 ## Proposed information architecture
 
@@ -47,16 +47,78 @@ Also adding discord, linkedin urls.
 Learning-oriented docs, focused on the basics and to make the user learn sktime API.
 
 * Forecasting
-    * Forecasting univariate timeseries
-    * Transformations and compositions
-    * Probabilistic forecasting
-    * Forecast panel datasets, broadcasting
-    * Forecasting hierarchical data
+    * Forecasting univariate timeseries (15 min)
+        * Load of a simple dataset (e.g. Airline), without exogenous variables
+        * Brief explanation of pandas structure in sktime
+        * Arguments for sktime forecasting API: y, fh
+        * Show relative and absolute fh
+        * Forecast with a simple model (e.g. exponential smoothing)
+    * Forecasting with exogenous variables (10 min)
+        * Forecast with a more advanced model (e.g. Chronos, to showcase versatility)
+        *  Forecasting with exogenous variables
+        * Dataset with exogenous variables
+        * `all_estimators` to get exogenous variables
+        * Usage of a simple forecaster that uses exogenous variables: AutoREG
+    * Transformations (10 min)
+        * Context about transformations, motivation
+        * Transformations for target variable (differencing, detrending)
+        * Feature Engineering: FourierFeatures, Holidays
+    * Pipelines (10 min)
+        * Motivation: avoid data leakage, reproducibility...
+        * Target transformations
+        * Transformations for exogenous variables
+        * Composition with both types of transformations
+        * `get_params` and `set_params` for compositions
+    * Cross-validation and metrics (10 min)
+        * Splitters, and their plot_windows
+        * Metrics
+        * `evaluate`
+        * Conclusion & call to click to other tutorials
+    * Hyperparameter tuning (10 min)
+        * Tuners in sktime
+        * Tuning of a simple model
+        * Tuning of a composition
+        * Cross-validation of a tuner
+    * Probabilistic forecasting (20 min)
+        * Brief Motivation
+        * showcase probabilistic forecasting with `predict_interval` using a simple forecaster
+        * Enumerate other forecasting methods (quantiles, variance etc)
+        * Detail briefly probabilistic forecasting behaviour with compositions
+        * Metrics for probabilistic forecasting
+        * Conformal wrappers and boostrapping
+    * Forecasting multiple series (panel datasets)
+        * Use a dataset with panel data, but not that large. Something that can be easily executed in a computer, < 1 min for fitting
+        * Motivation
+        * Details of pandas dataframe structure, and useful operations
+        * Call of `fit` and `predict` with a simple univariate model
+        * Demonstration of `.forecasters_` attribute
+        * Metrics for panel data (aggregation)
     * Forecasting with scikit-learn like regressors
+        * dataset loading
+        * `window_summarizer`, `make_reduction`
+        * Why differencing can be useful: capturing the trend
+        * Pipeline of transformations + reduction
+        * `get_params` and its recursive behaviour
     * Global and zero-shot forecasting
+        * Definition of global forecasting
+        * Global forecasting with Reduction Forecasters
+        * Global forecasting with Deep Learning
+        * Zero-shot forecasting
+    * Hierarchical forecasting
+        * Context of the problem
+        * Reconciliation strategies
+        * Reconciliation transformations (new API)
+        * ReconcileForecaster and mint
+        * Multiplex Forecaster and tuning of reconciliation
     * Machine-types (mtypes) and Scientific Types (scitypes)
-* Anomaly, segmentation
+        * What are mtypes and scitypes
+        * How to use polars with sktime
+* Detection
+    * Anomaly Detection
+    * Changepoint detection
 * Classification
+    * Introduction to timeseries classification
+    * Advanced Classification methods
 * Clustering
 * Regression
 

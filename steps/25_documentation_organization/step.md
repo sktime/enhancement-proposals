@@ -145,7 +145,13 @@ Goal oriented documentations, recipes, for users that already have certain knowl
 ## Examples
 
 Examples should be application oriented, end-to-end.
-We could temporarily leave the existing notebooks here, to be removed after the refactoring is completed
+We could temporarily leave the existing notebooks here, to be removed after the refactoring is completed.
+
+* Energy Forecasting
+* Financial timeseries
+* Retail forecasting
+* Healthcare applications
+* (old notebooks)
 
 ### Reference
 

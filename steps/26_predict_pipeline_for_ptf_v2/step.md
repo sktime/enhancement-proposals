@@ -286,13 +286,13 @@ Some things that we should borrow:
     * `raw`
 * Use of `PredictCallback`
 We could use `trainer.predict()` to make the predictions, but `PredictCallBack` provides some special customisations like a way to save the predictions directly in a `output_dir` and customised prediction writing to the output_dir at epoch_end or batch_end. `model.predict()` will internally call `trainer.predict()` but with `callback=PredictCallBack`.
-* `model.predict()` should accept not only the D1/D2 layer objects, but also, dataframes, which are internally fed to D1/D2 layers and dataloaders are create.
-* plot predictions and the actual values
+* `model.predict()` should accept D2 layer or the dataloaders.
 
 
 Other important features:
-* We should add some inbuilt function that provides the final dataframe (or csv file, if predictions are very large to be saved in a memory) from the prediction tensors (if mode="prediction").
-* predict should return either tensor or the final dataframe as specified by user (add a param like `return_type`).
+* We should add some inbuilt util function that provides the final dataframe (or csv file, if predictions are very large to be saved in a memory) from the prediction tensors (if mode="prediction").
+* predict should return a `dict` of tensors (or a D1 layer?).
+* We should also add some utils to plot predictions and the actual values
 
 ### Code snippets
 

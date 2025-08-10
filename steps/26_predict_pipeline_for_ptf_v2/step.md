@@ -277,15 +277,89 @@ model = DeepAR.load_from_checkpoint("lightning_logs/version_0/checkpoints/epoch=
 
 ## Proposal for predict of v2
 
+### Motivation
+In practice, users have diverse prediction needs:
+* **Exploratory analysis:** Quickly run predictions and inspect results in a DataFrame or plot.
+* **Backtesting:** Predict on validation sets and compute metrics like MAE or RMSE.
+* **Probabilistic forecasting:** Get full quantile distributions rather than just point estimates.
+* **Debugging:** Inspect raw model outputs, attention maps, and hidden states.
+
+In v1, much of this was possible, but:
+* The functionality was not fully decoupled from internal assumptions.
+* Metadata handling relied heavily on the dataset class.
+* There was no consistent utility for converting tensors to structured formats.
+* Disk-based prediction saving was possible but under-documented.
+
+In v2, we should try to design `.predict()` to be more general, composable, and predictable while retaining ease of use.
+
+### Requirements
+From the above, we identify key requirements:
+1. Input flexibility:
+
+    Accept:
+    * High-level D2 layer objects (DataModules).
+    * DataLoader objects.
+
+2. Output flexibility
+    * Modes:
+      * `"prediction"` (point forecasts)
+      * `"quantiles"` (full probabilistic forecasts)
+      * `"raw"` (unprocessed model outputs)
+    * Additional info via `return_info`: "index", "x", "y", "decoder_lengths".
+
+3. Scalability
+    * Option to write predictions to disk at batch or epoch level.
+    * Avoid storing entire results in memory for very large datasets.
+
+4. Ease of post-processing
+
+    Built-in utilities for:
+    * Converting prediction tensors to Dataframes or CSVs.
+    * Plotting predictions vs. actuals.
+
+5. Trainer integration
+    * Implemented via `trainer.predict()` for consistency with Lightning.
+    * Use a dedicated `PredictCallback` for extensibility and disk writing.
+### Design Principles
+The design follows these principles:
+* **Separation of responsibility:** Prediction logic lives in `.predict()`, processing logic in `to_prediction()`/`to_quantiles()`, and formatting logic in utilities like `to_dataframe()`.
+* **Extensibility:** Users can subclass `PredictCallback` to customize output handling.
+* **Reproducibility:** Outputs can include metadata for exact run reconstruction.
+* **Memory safety:** Large predictions can be streamed to disk without exhausting RAM.
+
+### High-Level Summary
+The proposed `.predict()` system for v2:
+* User calls `.predict()` with:
+    * A `DataModule` or `DataLoader`.
+    * A mode (`prediction`, `quantiles`, `raw`).
+    * Optional `return_info` list.
+    * Optional `output_dir` for disk writing.
+    * Any additional Trainer kwargs.
+
+* Internally:
+  * `.predict()` wraps `trainer.predict()` with a custom `PredictCallback`.
+  * `PredictCallback`:
+    * Processes raw outputs via `model.to_prediction()` or `model.to_quantiles()`.
+    * Collects additional requested info.
+    * Writes to disk if configured.
+  * Once prediction is complete, `PredictCallback.result` returns a dictionary of tensors.
+
+* Post-processing:
+  * Users can call `to_dataframe()` to convert outputs into a structured DataFrame.
+  * Users can plot results with `plot_predictions()`.
+
+### Implementation Plan
 We should learn from the prediction pipeline of v1 and have some functionalities like v1 in v2 as well.
 Some things that we should borrow:
 * `mode` in `.predict()` 
- We should allow the user to decide what kind of prediction (fully processed or raw) they want. It should have atleast the already available modes:
+
+     We should allow the user to decide what kind of prediction (fully processed or raw) they want. It should have atleast the already available modes:
     * `prediction`
     * `quantiles`
     * `raw`
 * Use of `PredictCallback`
-We could use `trainer.predict()` to make the predictions, but `PredictCallBack` provides some special customisations like a way to save the predictions directly in a `output_dir` and customised prediction writing to the output_dir at epoch_end or batch_end. `model.predict()` will internally call `trainer.predict()` but with `callback=PredictCallBack`.
+
+    We could use `trainer.predict()` to make the predictions, but `PredictCallBack` provides some special customisations like a way to save the predictions directly in a `output_dir` and customised prediction writing to the output_dir at epoch_end or batch_end. `model.predict()` will internally call `trainer.predict()` but with `callback=PredictCallBack`.
 * `model.predict()` should accept D2 layer or the dataloaders.
 
 
@@ -294,8 +368,168 @@ Other important features:
 * predict should return a `dict` of tensors (or a D1 layer?).
 * We should also add some utils to plot predictions and the actual values
 
-### Code snippets
+#### Public API Definition
+The `.predict()` method signature for all models in v2:
 
+```python
+def predict(
+    data,
+    mode: str = "prediction",  # "prediction", "quantiles", "raw"
+    return_info: list[str] | None = None,  # e.g. ["index", "x", "y", "decoder_lengths"]
+    write_interval,  # when to write to the disk?
+    output_dir: str | None = None,  # if provided, stream to disk
+    **trainer_kwargs,
+) -> dict[str, torch.Tensor]:
+    ...
+```
+Key points:
+* `data` can be D2 DataModule or a PyTorch DataLoader.
+* `mode` determines output processing function (`to_prediction()`, `to_quantiles()`, or no processing).
+* `return_info` specifies extra metadata to include.
+* `output_dir` enables large-scale predictions without RAM bottlenecks.
+
+#### Internal Prediction Flow
+1. Resolve inputs
+   * If given a DataModule, load the dataloaders.
+   * If given a DataLoader, use directly.
+
+2. Setup `PredictionCallBack`
+    * Instantiate a `PredictCallback` with parameters:
+       * `mode`
+       * `return_info`
+       * `output_dir`
+    * This callback:
+       * Calls the model’s `to_prediction()` / `to_quantiles()` based on mode.
+       * Collects any requested metadata.
+       * Either accumulates results in-memory or writes to `output_dir`.
+
+3. Run predictions
+
+    Use `trainer.predict()` in combination with the `PredictCallback`. The `model.predict()` method will internally call `trainer.predict()` with `PredictCallback` already configured for processing outputs, handling metadata, and optional disk streaming.
+
+    Users can also choose to call `trainer.predict()` directly without using `model.predict()`.
+
+    However:
+   * This bypasses the built-in `PredictCallback`.
+   * To still benefit from `PredictCallback` when using `trainer.predict()` directly, users must import and attach it manually.
+
+4. Return structured results
+    * If `output_dir` is `None`, return `dict[str, torch.Tensor]`.
+    * If `output_dir` is set, return `None` (data is on disk).
+
+### Processing Functions
+* `to_prediction(batch_output)`
+    * Converts raw model outputs to point forecasts.
+
+* `to_quantiles(batch_output)`
+    * Extracts quantile forecasts into a structured tensor/dict.
+
+* Raw mode
+    * Returns unmodified model outputs.
+### Output Utilities
+Provide built-in utilities for post-processing:
+
+* `to_dataframe(predictions, ...)`
+    * Converts dict[str, torch.Tensor] to pd.DataFrame.
+    * Handles time index reconstruction if available.
+
+
+* `plot_predictions(pred_df, actual_df)`
+    * Quick visualisation of predicted vs actual series.
+
+
+### High Level Vignettes
+
+* ***"quantiles" Mode***
+```python
+import pandas as pd
+from pytorch_forecasting import TimeSeries, EncoderDecoderDataModule, DeepAR
+from pytorch_forecasting.utils import to_dataframe # New utility function
+
+max_encoder_length = 60
+prediction_length = 20
+# Load the self-contained model
+model = DeepAR.load_from_checkpoint("my_model.ckpt")
+
+# Predict on new data
+data_df = pd.read_csv("latest_sales_data.csv")
+dataset = TimeSeries(
+    data = data_df,
+    ...,
+)
+data_module = EncoderDecoderDataModule(
+    time_series_dataset=dataset,
+    max_encoder_length=max_encoder_length,
+    max_prediction_length=prediction_length,
+    batch_size=32,
+    ...,
+)
+prediction_output = model.predict(
+    data_module, 
+    mode="quantiles",
+    return_info=["index"]  # return index to get time_idx and groups
+)
+
+# `prediction_output` is a dictionary-like object of tensors:
+# >>> prediction_output.keys()
+# dict_keys(['prediction', 'index'])
+
+# Convert the tensor output to a user-friendly DataFrame
+forecast_df = to_dataframe(
+    prediction_output,
+    ... 
+)
+
+# `forecast_df` is the same clean DataFrame as before:
+#
+#                            prediction_p50  prediction_q_0.05  prediction_q_0.95
+# group_id    time_idx
+# store_A     501                   150.5              130.2              170.8
+# ...
+```
+
+* ***BackTesting (with "prediction" mode)***
+```python
+# Assume `trainer`, `model`, and `val_dataloader` are defined from the training script
+trainer.fit(model, train_dataloader, val_dataloader)
+
+# Predict on the validation dataloader
+backtest_output = model.predict(
+    val_dataloader,
+    return_info=["y", "index"],  # return index and y
+)
+
+# `backtest_output` contains predictions plus the requested info
+# >>> backtest_output.keys()
+# dict_keys(['prediction', 'y', 'index'])
+
+# Compute MAE on the backtest period
+mae_metric = MAE()
+mae_value = mae_metric(
+    backtest_output["prediction"],
+    backtest_output["y"]
+)
+
+```
+
+* ***"raw" mode***
+```python
+raw_output = model.predict(
+    val_dataloader,
+    mode="raw"
+)
+
+# `raw_output` is the dictionary of tensors the user wants
+# >>> raw_output.keys()
+# dict_keys(['prediction', 'x', 'encoder_cont', 'decoder_attention'])
+
+# Extract tensors for analysis
+attention_tensor = raw_output["decoder_attention"]
+
+print(f"Attention tensor shape: {attention_tensor.shape}")
+# >>> Attention tensor shape: torch.Size([512, 20, 8, 60]) # as an example
+```
+### Internal working plan
 * ***PredictCallBack (similar to the one in v1)***
 
 
@@ -318,15 +552,16 @@ class PredictCallback(BasePredictionWriter):
     mode : str
         The prediction mode. Determines how the raw model output is processed.
         Should be one of "prediction", "quantiles", or "raw".
-    return_index : bool
-        If `True`, returns the group and time indices for each prediction.
-    return_decoder_lengths : bool
-        If `True`, returns the lengths of the decoder sequence for each prediction.
-    return_y : bool
-        If `True`, returns the actual target values (`y`) corresponding to
-        the predictions.
-    return_x : bool
-        If `True`, returns the full input dictionary (`x`) for each prediction.
+    return_info : Optional[List[str]], default=None
+        A list specifying which additional information to return alongside
+        predictions. Valid entries:
+        
+            - "index" : Return the group and time indices for each prediction.
+            - "x" : Return the full input dictionary (`x`) for each prediction.
+            - "y" : Return the actual target values (`y`) corresponding to predictions.
+            - "decoder_lengths" : Return the lengths of the decoder sequence.
+            
+        If None or empty, only predictions are returned.
     write_interval : str, default="batch"
         When to perform the collection step.
     output_dir : Optional[str]
@@ -347,10 +582,7 @@ class PredictCallback(BasePredictionWriter):
     def __init__(
         self,
         mode, # prediction mode
-        return_index, # return time_idx, groups           
-        return_decoder_lengths, # return decoder_lengths    
-        return_y, # return actual y                         
-        return_x, # return x                              
+        return_info, # list of str                                      
         write_interval,  # when to write to the disk?
         output_dir,
         **anyother_param_and_kwargs
@@ -358,10 +590,7 @@ class PredictCallback(BasePredictionWriter):
         super().__init__(write_interval=write_interval)
         # initialise params
         self.mode = mode
-        self.return_x = return_x
-        self.return_index = return_index
-        self.return_decoder_lengths = return_decoder_lengths
-        self.return_y = return_y
+        self.return_info = return_info
         self.output_dir = output_dir
 
         # any other initialisatioins
@@ -390,16 +619,16 @@ class PredictCallback(BasePredictionWriter):
             pl_module.to_quantiles()
             
            
-        if self.return_x:
+        if "x" in self.return_info:
             self._x = x
             # save x
-        if self.return_index:
+        if "index" in self.return_info:
             self._index = index
             # save index
-        if self.return_decoder_lengths:
+        if "decoder_lengths" in self.return_info:
             self._decoder_lengths = decoder_lengths
             # save decoder length
-        if self.return_y:
+        if "y" in self.return_info:
             self._y = y
             # save y
             
@@ -439,11 +668,8 @@ class PredictCallback(BasePredictionWriter):
 def predict(
     data, # Dataloader, D2 layer 
     mode, # prediction mode
-    return_index, # return time_idx, groups
-    return_decoder_lengths, # return decoder_lengths
-    return_y, # return actual y
+    return_info,
     write_interval,  # when to write to the disk?
-    return_x, # return x
     output_dir,
     trainer_kwargs, # kwargs for trainer like enable_progress_bar etc
     **anyother_param_and_kwargs
@@ -458,27 +684,35 @@ def predict(
     ----------
     data : Union[DataModule, DataLoader]
         The data to predict on. Can be one of:
+        
         - `DataModule` (D2 Layer): A pre-configured
           data module.
         - `DataLoader`: A pre-built DataLoader for prediction.
+        
     mode : str
         The prediction mode. One of "prediction", "quantiles", or "raw".
+        
         - "prediction": Returns final predictions.
         - "quantiles": Returns a forecast for each quantile defined in the
           model's loss function.
         - "raw": Returns the raw, unprocessed output of the network.
-    return_index : bool
-        If `True`, include the time and group index in the output. 
-    return_decoder_lengths : bool, default=False
-        If `True`, include the decoder lengths in the output dictionary
-    return_y : bool
-        If `True`, include the actual target values (`y`) corresponding to
-        the predictions. Requires `y` to be present in the prediction data.
-    return_x : bool
-        If `True`, include the full input dictionary (`x`) for each prediction
+        
+    return_info : Optional[List[str]], default=None
+        A list specifying which additional information to return alongside
+        predictions. Valid entries:
+        
+            - "index" : Return the group and time indices for each prediction.
+            - "x" : Return the full input dictionary (`x`) for each prediction.
+            - "y" : Return the actual target values (`y`) corresponding to predictions.
+            - "decoder_lengths" : Return the lengths of the decoder sequence.
+            
+        If None or empty, only predictions are returned.
     output_dir : Optional[str]
         Path to a directory where predictions can be saved. 
-    **kwargs
+        
+    trainer_kwargs:
+        kwargs for `Trainer`
+    **kwargs:
         Additional keyword arguments passed to the model's processing methods,
         such as `to_prediction()` or `to_quantiles()`. For example, you can
         override the default quantiles by passing `quantiles=[0.1, 0.5, 0.9]`.
@@ -494,12 +728,9 @@ def predict(
     
     predict_callback=PredictCallback(
             mode=mode,
-            return_index=return_index,
-            return_decoder_lengths=return_decoder_lengths,
+            return_info = return_info,
             write_interval=write_interval,
-            return_x=return_x,
             output_dir=output_dir,
-            return_y=return_y,
             **kwargs
     )
     trainer_kwargs.setdefault(
@@ -551,10 +782,10 @@ def to_quantiles(self, out: dict[str, Any], **kwargs):
 ```
 * ***Another util to transform the tensors to a dataframe***
 ```python
-    def to_dataframe(predictions, D2layer):
+    def to_dataframe(predictions, ... # still need to figure out exact params this util will require):
         # transform the prediction tensors to dataframe
 ```
-> **NOTE: We still have to try and see if we could fit it in `PredictCallBack` without requiring the metadata from D2 layer (maybe just `return_index` and other params if made `True` are sufficient).**
+> **NOTE: We still have to try and see if we could fit this `to_dataframe` utility in `PredictCallBack` without requiring the metadata from D2 layer (maybe just `return_info` is sufficient).**
 
 ### open questions:
 <!-- * I think `return_type` should only work with `prediction` mode, for other modes, only returning tensors should suffice?  -->

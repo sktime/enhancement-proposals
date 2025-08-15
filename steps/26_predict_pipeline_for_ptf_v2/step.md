@@ -442,7 +442,7 @@ Provide built-in utilities for post-processing:
 * ***Dataframe as input***
 ```python
 import pandas as pd
-from pytorch_forecasting import DeepAR
+from pytorch_forecasting.models import DeepAR
 # get the dataframe
 data_df = pd.read_csv("latest_sales_data.csv")
 
@@ -464,7 +464,8 @@ prediction_output = model.predict(
 * ***`TimeSeries` (D1 layer) object as input***
 ```python
 import pandas as pd
-from pytorch_forecasting import TimeSeries, DeepAR
+from pytorch_forecasting.data import TimeSeries
+from pytorch_forecasting.models import DeepAR
 # get the dataframe
 data_df = pd.read_csv("latest_sales_data.csv")
 
@@ -496,7 +497,9 @@ prediction_output = model.predict(
 * ***"quantiles" Mode and Datamodule as input***
 ```python
 import pandas as pd
-from pytorch_forecasting import TimeSeries, DataModule, DeepAR # Datamodule can be any LightningDatamodule Class child
+# Datamodule can be any LightningDatamodule Class child
+from pytorch_forecasting.data import TimeSeries, DataModule 
+from pytorch_forecasting.models import DeepAR
 from pytorch_forecasting.utils import to_dataframe # New utility function
 
 max_encoder_length = 60
@@ -517,7 +520,9 @@ dataset = TimeSeries(
     unknown=["x", "category"],
     static=["static_feature", "static_feature_cat"],
 )
-
+# Disclaimer: the naming of param may differ depending the Datamodule being used
+# Eg: ``max_encoder_length``(used in ``EncoderDecoderDataModule``) is replaced by 
+# ``context_length`` in ``TslibDataModule``
 data_module = DataModule(
     time_series_dataset=dataset,
     max_encoder_length=max_encoder_length,

@@ -1,4 +1,4 @@
-# Collection of Datasets
+# Advanced Benchmarking
 
 Contributors: ["jgyasu"]
 
@@ -10,7 +10,129 @@ For preliminary discussions of the proposal presented here, see issue:
 
 ## Problem statement
 
-Currently if a user needs to reproduce a benchmarking experiment or extend it, they need to import all the dataset loaders by themselves, it is not very convenient for the end user of `sktime`. We intend to provide a simple and efficient interface, so this proposal proposes dataset collections. These collections can be created once and can be used by the user efficiently.
+Users would like to run benchmarking experiments on scale, for statistical performance of estimators, similar to common academic or industrial experiments. This enhancement proposal is about enabling common experimental setups, as described below.
+
+Features and designs are derived from this
+
+## Use cases
+
+* use case 1: reproducing a known set of benchmarks, for instance, M4, M5, TSC
+    * this is 1:1 reproduction of a previous experiment
+* use case 2: running a typical "academic benchmark experiment": 1 new estimator, plus a common selection of prior art benchmarks and naive benchmarks are run on a common selection of datasets
+    * this includes the case where we add a single estimator to a known set of benchmarks
+    * there are two sub-cases: 2a re-running the entire experiment; 2b only retrieving results, and runnong only the estimator in addition
+* use case 3: running a common set of algorithms on a new dataset (single) or collection thereof. Typical "industry" use case. data is new, but estimators are known sets.
+    * this may be repeated regularly as data set grows. (refit, new start, or update)
+
+## Requirements - for this enhancement phase
+
+* use cases as above can be handled easily, intuitive sklearn-like specification syntax (all use cases)
+    * "run the TSC bake-off" should not be too many lines!
+* user can obtain and use easily well-known sets of benchmark estimators (all use cases)
+* user can obtain and use easily well-known sets of benchmark datasets (use case 1 and 2)
+* user can obtain and use easily historical configurations of benchmarks, e.g., combination of metrics, cv, and estimators, datasets (use case 1, 2).
+    * possibly also, collections of metrics?
+* resumability: if experiment breaks, it can be resumed (all use cases)
+* sharing of cached benchmarking results: if user does not want to rerun full "standard benchmarks" results can be obtained (2b)
+* easily deployable on a cluster - typical benchmark runs take a long time
+    * parked until next enhancement
+
+## Conceptual model
+
+MAYBE NOT COMPLETE; PLEASE WORK ON THIS
+
+### relevant objects
+
+#### "primitives" relevant
+
+estimator
+
+Example 1: `HIVECOTEv1()`
+Example 2: `ChronosForecaster()`
+Example 3: `TransformedTargetForecaster([Differencer(), ExponentialSmoothing()])`
+
+dataset object in-memory, containers
+
+Example 1: return of `load_airline()`
+Example 2: returns of `load_arrowhead()`
+Example 3: instance `ArrowHead()` - class design
+Question: maybe want to introduce additional containers specifically for bm
+
+* dataset file on hard-drive or cloud
+
+Example 1: a collection of `csv` for time series classification
+Example 2: the M5 dataset files as downloaded from Monash repo
+Example 3: bunch of `tsf`
+Question: we may want to host common datasets on HuggingFace - need to think about
+how to represent these
+
+* re-sampling specifier
+* metric
+
+#### specification of benchmark experiment
+
+is made up of:
+* selection of estimators
+* selection of datasets
+* re-sampling and cv
+* selection of metrics
+* this constitutes a single benchmark experiment *specification*
+* different estimator types will imply different object types above!
+
+"always give three examples"
+
+Example 1: "specification of TSC bake-off"
+* list of estimators from paper
+* UCR repository datasets state 2018
+* etc
+
+#### experiment results
+* metric evaluate per estimator, dataset, re-sample fold
+* different levels of aggregation of these
+    * e.g., mean over all datasets
+
+#### "collection" of objects
+
+* of estimators, etc
+
+Example 1: all the estimators in the TSC bake-off (original)
+Example 2: the M4 datasets
+Example 3: "common choice of point forecasting metrics", e.g., MAPE, RMSE, MAE
+
+
+
+
+### relevant actions
+
+"specify": experiment specification is constructed from different selections
+
+"execute experiment": benchmark experiment runs
+
+"resume experiment": benchmark experiment restart after abort
+
+## User journey designs
+
+### Use case 1
+
+```python
+stuff
+
+
+```
+
+
+### Use case 2a
+
+### Use case 2b
+
+
+### Use case 3
+
+
+
+### Resuming experiment after it breaks in middle
+
+
 
 ## Description of proposed solution
 

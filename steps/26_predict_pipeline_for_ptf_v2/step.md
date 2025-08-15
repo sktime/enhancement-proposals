@@ -523,7 +523,7 @@ data_module = DataModule(
     max_encoder_length=max_encoder_length,
     max_prediction_length=prediction_length,
     batch_size=32,
-    ...,
+    ..., # other params like target_normalizer, num_workers etc
 )
 prediction_output = model.predict(
     data_module, 

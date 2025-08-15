@@ -439,11 +439,64 @@ Provide built-in utilities for post-processing:
 
 
 ### High Level Vignettes
-
-* ***"quantiles" Mode***
+* ***Dataframe as input***
 ```python
 import pandas as pd
-from pytorch_forecasting import TimeSeries, EncoderDecoderDataModule, DeepAR
+from pytorch_forecasting import DeepAR
+# get the dataframe
+data_df = pd.read_csv("latest_sales_data.csv")
+
+# Load the self-contained model
+model = DeepAR.load_from_checkpoint("my_model.ckpt")
+
+# Perform the prediction
+prediction_output = model.predict(
+    data_df, 
+    mode="quantiles",
+    return_info=["index"]  # return index to get time_idx and groups
+)
+
+# `prediction_output` is a dictionary-like object of tensors:
+# >>> prediction_output.keys()
+# dict_keys(['prediction', 'index'])
+```
+
+* ***`TimeSeries` (D1 layer) object as input***
+```python
+import pandas as pd
+from pytorch_forecasting import TimeSeries, DeepAR
+# get the dataframe
+data_df = pd.read_csv("latest_sales_data.csv")
+
+# Load the self-contained model
+model = DeepAR.load_from_checkpoint("my_model.ckpt")
+dataset = TimeSeries(
+    data = data_df,
+    time="time_idx",
+    target="y",
+    group=["series_id"],
+    num=["x", "future_know_feature", "static_feature"],
+    cat=["category", "static_feature_cat"],
+    known=["future_known_feature"],
+    unknown=["x", "category"],
+    static=["static_feature", "static_feature_cat"],
+)
+
+# Perform the prediction
+prediction_output = model.predict(
+    dataset, 
+    mode="prediction",
+)
+
+# `prediction_output` is a dictionary-like object of tensors:
+# >>> prediction_output.keys()
+# dict_keys(['prediction'])
+```
+
+* ***"quantiles" Mode and Datamodule as input***
+```python
+import pandas as pd
+from pytorch_forecasting import TimeSeries, DataModule, DeepAR # Datamodule can be any LightningDatamodule Class child
 from pytorch_forecasting.utils import to_dataframe # New utility function
 
 max_encoder_length = 60
@@ -455,9 +508,17 @@ model = DeepAR.load_from_checkpoint("my_model.ckpt")
 data_df = pd.read_csv("latest_sales_data.csv")
 dataset = TimeSeries(
     data = data_df,
-    ...,
+    time="time_idx",
+    target="y",
+    group=["series_id"],
+    num=["x", "future_know_feature", "static_feature"],
+    cat=["category", "static_feature_cat"],
+    known=["future_known_feature"],
+    unknown=["x", "category"],
+    static=["static_feature", "static_feature_cat"],
 )
-data_module = EncoderDecoderDataModule(
+
+data_module = DataModule(
     time_series_dataset=dataset,
     max_encoder_length=max_encoder_length,
     max_prediction_length=prediction_length,
@@ -488,7 +549,7 @@ forecast_df = to_dataframe(
 # ...
 ```
 
-* ***BackTesting (with "prediction" mode)***
+* ***BackTesting (with "prediction" mode) and Dataloader as input***
 ```python
 # Assume `trainer`, `model`, and `val_dataloader` are defined from the training script
 trainer.fit(model, train_dataloader, val_dataloader)
@@ -685,6 +746,8 @@ def predict(
     data : Union[DataModule, DataLoader]
         The data to predict on. Can be one of:
         
+        - `pd.Dataframe`: A pandas dataframe
+        -`TimeSeries Dataset Object`: A pre-configured D1 layer Object
         - `DataModule` (D2 Layer): A pre-configured
           data module.
         - `DataLoader`: A pre-built DataLoader for prediction.
@@ -723,6 +786,10 @@ def predict(
     Dict[str, Any]
         The final, collated prediction result tensors. 
     """
+    if isinstance(data, Dataframe):
+        # create D1 layer
+    if isinstance(data, D1):
+        # create D2 layer
     if isinstance(data, d2):
         # create dataloaders
     

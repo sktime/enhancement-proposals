@@ -371,7 +371,7 @@ Other important features:
 #### The Layered Approach
 As suggested by @fkiraly, we can try a layered approach similar to the OSI model of Computer Networks. The model has multiple layers, and the data is transferred from one layer to another.
 
-![OSI.png](OSI.png)
+![OSI.png](./steps/26_predict_pipeline_for_ptf_v2/OSI.png)
 
 We should also try a similar approach. The user inputs depends on how the `data` is moved across the layers:
 * D1 Layer:
@@ -381,7 +381,7 @@ We should also try a similar approach. The user inputs depends on how the `data`
 * Dataloaders:
   * The `data` passes as it is through the **Package Layer** and is sent to the **model layer**
 
-![pkg_model_layer.png](pkg_model_layer.png)
+![pkg_model_layer.png](./steps/26_predict_pipeline_for_ptf_v2/pkg_model_layer.png)
 
 The main `.predict()` logic still resides in the **model layer**, but its wrapper exists in the **Package Layer**, which just checks one thing - if the input `data` is D1 layer, D2 layer or dataloader.
 (Here `data` represents the param `data` in the `.predict()` (see [Public API Definition](#Public-API-Definition)))

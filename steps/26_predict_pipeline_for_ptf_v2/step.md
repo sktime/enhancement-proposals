@@ -330,7 +330,7 @@ The design follows these principles:
 ### High-Level Summary
 The proposed `.predict()` system for v2:
 * User calls `.predict()` with:
-    * A `DataModule` or `DataLoader`.
+    * A `TimeSeries` Dataset, `DataModule` or `DataLoader`.
     * A mode (`prediction`, `quantiles`, `raw`).
     * Optional `return_info` list.
     * Optional `output_dir` for disk writing.
@@ -368,6 +368,24 @@ Other important features:
 * predict should return a `dict` of tensors (or a D1 layer?).
 * We should also add some utils to plot predictions and the actual values
 
+#### The Layered Approach
+As suggested by @fkiraly, we can try a layered approach similar to the OSI model of Computer Networks. The model has multiple layers, and the data is transferred from one layer to another.
+
+![OSI.png](OSI.png)
+
+We should also try a similar approach. The user inputs depends on how the `data` is moved across the layers:
+* D1 Layer:
+  * The `data` is passed to the **Package layer** (also called **M layer**), which creates the D2 Layer, which then loads the dataloader and passes it to the model
+* D2 Layer:
+  * The `data` is still moves through the **Package Layer**, it just creates the dataloaders and these dataloaders are sent to the **model layer**
+* Dataloaders:
+  * The `data` passes as it is through the **Package Layer** and is sent to the **model layer**
+
+![pkg_model_layer.png](pkg_model_layer.png)
+
+The main `.predict()` logic still resides in the **model layer**, but its wrapper exists in the **Package Layer**, which just checks one thing - if the input `data` is D1 layer, D2 layer or dataloader.
+(Here `data` represents the param `data` in the `.predict()` (see [Public API Definition](#Public-API-Definition)))
+
 #### Public API Definition
 The `.predict()` method signature for all models in v2:
 
@@ -383,14 +401,68 @@ def predict(
     ...
 ```
 Key points:
-* `data` can be D2 DataModule or a PyTorch DataLoader.
+* `data` can be D1 Dataset object, D2 DataModule or a PyTorch DataLoader.
 * `mode` determines output processing function (`to_prediction()`, `to_quantiles()`, or no processing).
 * `return_info` specifies extra metadata to include.
 * `output_dir` enables large-scale predictions without RAM bottlenecks.
 
+#### The Package Layer
+The Package Layer will wrap the whole `Lightning` workflow. This would make the flow very streamlined and user don't have to import `trainer` and define it, it will be handled by the `_pkg` class.
+
+* **Train from scratch**
+```python
+# assuming train_dataset, test_dataset are D1 layer objects
+# define cfgs
+model_cfg = dict(
+    hidden_size=64,
+    num_layers=2,
+    attention_head_size=4,
+)
+
+trainer_cfg = dict(
+    max_epochs=5,
+    accelerator="auto",
+    devices=1,
+    enable_progress_bar=True,
+    log_every_n_steps=10,
+)
+datamodule_cfg = dict(
+    max_encoder_length=30,
+    max_prediction_length=2,
+    batch_size=32,
+    ..., # other params like target_normalizer, num_workers etc
+)
+# init package
+pkg = model_pkg(TFT, model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
+
+# training
+pkg.fit(train_dataset)
+
+# prediction
+preds = pkg.predict(test_dataset, mode= "raw", ...)
+```
+* **Load pretrained model**
+```python
+pkg = model_pkg(TFT, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
+preds = pkg.predict(test_dataset, mode= "raw", ...)
+```
+> Here one more way is to save the `datamodule_cfg` inside the model params, not sure which way is better
+* **Train, then later reload for inference**
+```python
+# Train + save
+pkg = model_pkg(TFT, model_cfg, trainer_cfg=trainer_cfg)
+pkg.fit(train_dataset, save_ckpt=True)
+# -> Lightning saves checkpoint automatically
+
+# Later, in a new session:
+pkg2 = model_pkg(TFT, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt")
+preds = pkg2.predict(new_dataset)
+```
+
 #### Internal Prediction Flow
 1. Resolve inputs
-   * If given a DataModule, load the dataloaders.
+   * If given a D1 layer, create D2 Layer (inside the **Package Layer**) and pass it to the **Model Layer**.
+   * If given a DataModule, load the dataloaders (inside the **Package Layer**).
    * If given a DataLoader, use directly.
 
 2. Setup `PredictionCallBack`
@@ -439,28 +511,6 @@ Provide built-in utilities for post-processing:
 
 
 ### High Level Vignettes
-* ***Dataframe as input***
-```python
-import pandas as pd
-from pytorch_forecasting.models import DeepAR
-# get the dataframe
-data_df = pd.read_csv("latest_sales_data.csv")
-
-# Load the self-contained model
-model = DeepAR.load_from_checkpoint("my_model.ckpt")
-
-# Perform the prediction
-prediction_output = model.predict(
-    data_df, 
-    mode="quantiles",
-    return_info=["index"]  # return index to get time_idx and groups
-)
-
-# `prediction_output` is a dictionary-like object of tensors:
-# >>> prediction_output.keys()
-# dict_keys(['prediction', 'index'])
-```
-
 * ***`TimeSeries` (D1 layer) object as input***
 ```python
 import pandas as pd
@@ -469,8 +519,7 @@ from pytorch_forecasting.models import DeepAR
 # get the dataframe
 data_df = pd.read_csv("latest_sales_data.csv")
 
-# Load the self-contained model
-model = DeepAR.load_from_checkpoint("my_model.ckpt")
+# Create the D1 Layer
 dataset = TimeSeries(
     data = data_df,
     time="time_idx",
@@ -482,9 +531,17 @@ dataset = TimeSeries(
     unknown=["x", "category"],
     static=["static_feature", "static_feature_cat"],
 )
+trainer_cfg = dict(
+    max_epochs=5,
+    accelerator="auto",
+    devices=1,
+    enable_progress_bar=True,
+    log_every_n_steps=10,
+)
 
+pkg = Model_pkg(DeepAR, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
 # Perform the prediction
-prediction_output = model.predict(
+prediction_output = pkg.predict(
     dataset, 
     mode="prediction",
 )
@@ -530,7 +587,9 @@ data_module = DataModule(
     batch_size=32,
     ..., # other params like target_normalizer, num_workers etc
 )
-prediction_output = model.predict(
+
+pkg = Model_pkg(DeepAR, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt")
+prediction_output = pkg.predict(
     data_module, 
     mode="quantiles",
     return_info=["index"]  # return index to get time_idx and groups
@@ -557,10 +616,16 @@ forecast_df = to_dataframe(
 * ***BackTesting (with "prediction" mode) and Dataloader as input***
 ```python
 # Assume `trainer`, `model`, and `val_dataloader` are defined from the training script
-trainer.fit(model, train_dataloader, val_dataloader)
+model_cfg = dict(
+    hidden_size=64,
+    num_layers=2,
+    attention_head_size=4,
+)
+pkg = Model_pkg(DeepAR, model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg= datamodule_cfg)
+pkg.fit(model, train_dataloader, val_dataloader)
 
 # Predict on the validation dataloader
-backtest_output = model.predict(
+backtest_output = pkg.predict(
     val_dataloader,
     return_info=["y", "index"],  # return index and y
 )
@@ -580,7 +645,7 @@ mae_value = mae_metric(
 
 * ***"raw" mode***
 ```python
-raw_output = model.predict(
+raw_output = pkg.predict(
     val_dataloader,
     mode="raw"
 )
@@ -596,6 +661,64 @@ print(f"Attention tensor shape: {attention_tensor.shape}")
 # >>> Attention tensor shape: torch.Size([512, 20, 8, 60]) # as an example
 ```
 ### Internal working plan
+* ***Package Class***
+```python
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+
+class Model_pkg:
+    def __init__(self, model_cls, model_cfg=None, trainer_cfg=None, datamodule_cfg=None, ckpt_path=None):
+        self.model_cls = model_cls
+        self.model_cfg = model_cfg or {}
+        self.datamodule_cfg = datamodule_cfg or {}
+        self.trainer_cfg = trainer_cfg or {}
+        self.ckpt_path = ckpt_path
+        self.model = None
+        self.trainer = None
+
+    def fit(self, dataset, save_ckpt=False, ckpt_dir="checkpoints"):
+        # add checkpoint callback if requested
+        callbacks = []
+        if save_ckpt:
+            checkpoint_cb = ModelCheckpoint(
+                dirpath=ckpt_dir,
+                filename="{epoch}-{val_loss:.2f}",
+                save_top_k=1,   # keep best model
+                monitor="val_loss", # assumes val_loss is logged
+                mode="min"
+            )
+            callbacks.append(checkpoint_cb)
+
+        # build trainer
+        self.trainer = Trainer(callbacks=callbacks, **self.trainer_cfg)
+
+        # datamodule + model
+        self.datamodule = self._build_datamodule(dataset)
+        if self.model is None:
+            self.model = self.model_cls(**self.model_cfg)
+
+        self.trainer.fit(self.model, self.datamodule)
+
+        # if ckpt saving enabled, return path
+        if save_ckpt:
+            return checkpoint_cb.best_model_path
+        return None
+
+    def predict(self, dataset, ckpt_path=None):
+        predict_dm = self._build_datamodule(dataset)
+        dataloader= self._create_dataloaders(predict_dm)
+        model = self.model_cls.load_from_checkpoint(ckpt_path) if ckpt_path else self.model
+        preds = self.model.predict(model, dataloader)
+        return preds
+
+    def _build_datamodule(self, dataset):
+        return DataModule(dataset, **self.datamodule_cfg)
+    
+    def _create_dataloaders(self, datamodule):
+        return datamodule.test_dataloader
+```
+
+
 * ***PredictCallBack (similar to the one in v1)***
 
 
@@ -732,7 +855,7 @@ class PredictCallback(BasePredictionWriter):
 # Inside the BaseModel
 
 def predict(
-    data, # Dataloader, D2 layer 
+    data, 
     mode, # prediction mode
     return_info,
     write_interval,  # when to write to the disk?
@@ -748,14 +871,8 @@ def predict(
 
     Parameters
     ----------
-    data : Union[DataModule, DataLoader]
-        The data to predict on. Can be one of:
-        
-        - `pd.Dataframe`: A pandas dataframe
-        -`TimeSeries Dataset Object`: A pre-configured D1 layer Object
-        - `DataModule` (D2 Layer): A pre-configured
-          data module.
-        - `DataLoader`: A pre-built DataLoader for prediction.
+    data :  DataLoader
+        A pre-built DataLoader for prediction.
         
     mode : str
         The prediction mode. One of "prediction", "quantiles", or "raw".
@@ -791,12 +908,6 @@ def predict(
     Dict[str, Any]
         The final, collated prediction result tensors. 
     """
-    if isinstance(data, Dataframe):
-        # create D1 layer
-    if isinstance(data, D1):
-        # create D2 layer
-    if isinstance(data, d2):
-        # create dataloaders
     
     predict_callback=PredictCallback(
             mode=mode,

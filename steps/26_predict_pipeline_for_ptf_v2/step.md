@@ -181,6 +181,7 @@ Now comes the most interesting part of the pipeline - prediction. `pytorch-forec
 * Internally uses `trainer.predict()` with `PredictCallback`
 
 #### Output Types:
+The output is a `Prediction` class type object which has different keys depending upon the `mode` and other params (like `return_x` etc).
 Here `N` is the size of validation data
 * "prediction" -> tensor of shape`(N, prediction_length)`
 * "quantiles" -> tensor of shape`(N, prediction_length, n_quantiles)`
@@ -433,7 +434,7 @@ datamodule_cfg = dict(
     ..., # other params like target_normalizer, num_workers etc
 )
 # init package
-pkg = model_pkg(TFT, model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
+pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
 
 # training
 pkg.fit(train_dataset)
@@ -443,19 +444,20 @@ preds = pkg.predict(test_dataset, mode= "raw", ...)
 ```
 * **Load pretrained model**
 ```python
-pkg = model_pkg(TFT, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
+pkg = model_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
 preds = pkg.predict(test_dataset, mode= "raw", ...)
 ```
 > Here one more way is to save the `datamodule_cfg` inside the model params, not sure which way is better
 * **Train, then later reload for inference**
 ```python
 # Train + save
-pkg = model_pkg(TFT, model_cfg, trainer_cfg=trainer_cfg)
+pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
 pkg.fit(train_dataset, save_ckpt=True)
 # -> Lightning saves checkpoint automatically
 
 # Later, in a new session:
-pkg2 = model_pkg(TFT, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt")
+pkg2 = model_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt",  datamodule_cfg="checkpoints/dm_cfg.pkl")
+preds = pkg.predict(test_dataset, mode= "raw", ...)
 preds = pkg2.predict(new_dataset)
 ```
 
@@ -515,7 +517,7 @@ Provide built-in utilities for post-processing:
 ```python
 import pandas as pd
 from pytorch_forecasting.data import TimeSeries
-from pytorch_forecasting.models import DeepAR
+from pytorch_forecasting.models import DeepAR, DeepAR_pkg
 # get the dataframe
 data_df = pd.read_csv("latest_sales_data.csv")
 
@@ -539,7 +541,7 @@ trainer_cfg = dict(
     log_every_n_steps=10,
 )
 
-pkg = Model_pkg(DeepAR, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
+pkg = DeepAR_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
 # Perform the prediction
 prediction_output = pkg.predict(
     dataset, 
@@ -556,7 +558,7 @@ prediction_output = pkg.predict(
 import pandas as pd
 # Datamodule can be any LightningDatamodule Class child
 from pytorch_forecasting.data import TimeSeries, DataModule 
-from pytorch_forecasting.models import DeepAR
+from pytorch_forecasting.models import DeepAR, DeepAR_pkg
 from pytorch_forecasting.utils import to_dataframe # New utility function
 
 max_encoder_length = 60
@@ -588,7 +590,7 @@ data_module = DataModule(
     ..., # other params like target_normalizer, num_workers etc
 )
 
-pkg = Model_pkg(DeepAR, trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt")
+pkg = DeepAR_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt")
 prediction_output = pkg.predict(
     data_module, 
     mode="quantiles",
@@ -621,7 +623,7 @@ model_cfg = dict(
     num_layers=2,
     attention_head_size=4,
 )
-pkg = Model_pkg(DeepAR, model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg= datamodule_cfg)
+pkg = DeepAR_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg= datamodule_cfg)
 pkg.fit(model, train_dataloader, val_dataloader)
 
 # Predict on the validation dataloader
@@ -667,14 +669,19 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 class Model_pkg:
-    def __init__(self, model_cls, model_cfg=None, trainer_cfg=None, datamodule_cfg=None, ckpt_path=None):
-        self.model_cls = model_cls
+    def __init__(self, model_cfg=None, trainer_cfg=None, datamodule_cfg=None, ckpt_path=None):
         self.model_cfg = model_cfg or {}
         self.datamodule_cfg = datamodule_cfg or {}
         self.trainer_cfg = trainer_cfg or {}
         self.ckpt_path = ckpt_path
         self.model = None
         self.trainer = None
+    
+    def get_cls(cls):
+        """Get model class."""
+        from pytorch_forecasting.models import model
+
+        return model
 
     def fit(self, dataset, save_ckpt=False, ckpt_dir="checkpoints"):
         # add checkpoint callback if requested
@@ -694,8 +701,6 @@ class Model_pkg:
 
         # datamodule + model
         self.datamodule = self._build_datamodule(dataset)
-        if self.model is None:
-            self.model = self.model_cls(**self.model_cfg)
 
         self.trainer.fit(self.model, self.datamodule)
 

@@ -676,7 +676,10 @@ class Model_pkg:
         self.ckpt_path = ckpt_path
         self.model = None
         self.trainer = None
+        
+        self.model_cls = self.get_cls()
     
+    @classmethod
     def get_cls(cls):
         """Get model class."""
         from pytorch_forecasting.models import model

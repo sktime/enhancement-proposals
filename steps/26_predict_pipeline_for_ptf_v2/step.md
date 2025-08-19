@@ -702,6 +702,57 @@ class Model_pkg:
               the datamodule is configured. This pickle file is created when the checkpoint 
               is created for the model.
     
+    Workflow
+    --------
+    - Train from scratch: 
+      Provide ``model_cfg`` + ``trainer_cfg`` + ``datamodule_cfg`` (as dict). 
+      Call ``pkg.fit(dataset, ...)`` to train and optionally save checkpoints.
+    
+    - Load pretrained model: 
+      Provide ``trainer_cfg`` + ``ckpt_path`` + ``datamodule_cfg`` (as str). 
+      The datamodule configuration is restored from the serialized pickle.
+    
+    - Train, then reload later: 
+      Train once with dict-based ``datamodule_cfg``, then restore in a new session 
+      with ``ckpt_path`` + pickle-based ``datamodule_cfg`` (or carefully pass the exact 
+      ``datamoudle_cfg`` as ``dict`` as used while training).
+      
+    Examples
+    --------
+    **1. Train from scratch**
+    
+    >>> model_cfg = dict(hidden_size=64, num_layers=2, attention_head_size=4)
+    >>> trainer_cfg = dict(max_epochs=5, accelerator="auto", devices=1)
+    >>> datamodule_cfg = dict(max_encoder_length=30, max_prediction_length=2, batch_size=32)
+    >>> 
+    >>> pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
+    >>> pkg.fit(train_dataset)
+    >>> preds = pkg.predict(test_dataset, mode="raw")
+    
+    **2. Load pretrained model**
+    
+    >>> trainer_cfg = dict(max_epochs=5, accelerator="auto", devices=1)
+    >>> pkg = model_pkg(
+    ...     trainer_cfg=trainer_cfg,
+    ...     ckpt_path="checkpoints/last.ckpt",
+    ...     datamodule_cfg="checkpoints/dm_cfg.pkl"
+    ... )
+    >>> preds = pkg.predict(test_dataset, mode="raw")
+    
+    **3. Train, then reload later**
+    
+    >>> # Train + save
+    >>> pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
+    >>> pkg.fit(train_dataset, save_ckpt=True)
+    >>> 
+    >>> # In a new session, reload from checkpoint
+    >>> pkg2 = model_pkg(
+    ...     trainer_cfg=trainer_cfg,
+    ...     ckpt_path="checkpoints/last.ckpt",
+    ...     datamodule_cfg="checkpoints/dm_cfg.pkl"
+    ... )
+    >>> preds = pkg2.predict(new_dataset)
+    
     """
     def __init__(self, model_cfg, trainer_cfg, datamodule_cfg, ckpt_path=None):
         self.model_cfg = model_cfg or {}

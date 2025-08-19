@@ -448,7 +448,7 @@ preds = pkg.predict(test_dataset, mode= "raw", ...)
 pkg = model_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt", datamodule_cfg="checkpoints/dm_cfg.pkl")
 preds = pkg.predict(test_dataset, mode= "raw", ...)
 ```
-> Here one more way is to save the `datamodule_cfg` inside the model params, not sure which way is better
+
 * **Train, then later reload for inference**
 ```python
 # Train + save
@@ -670,7 +670,40 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 class Model_pkg:
-    def __init__(self, model_cfg=None, trainer_cfg=None, datamodule_cfg=None, ckpt_path=None):
+    """Model package class that act as a wrapper for the lightning workflow and also where the test params resides
+    
+    Parameters
+    ----------
+    model_cfg : dict
+        Model configs for the initialisation of model.
+    trainer_cfg : dict
+        configs to initialise ``Lightning.Trainer``.
+    datamodule_cfg : dict or str
+        configs to initialise ``LightningDataModule``.
+        
+        - If dict, the keys and values are used as configuration parameters 
+          to initialize the ``LightningDataModule`` directly.
+        - If str, it should be a filesystem path to a ``.pkl`` file containing
+          the serialized configuration dictionary. 
+    ckpt_path : str, optional
+        Path to the checkpoint from where the model would be loaded
+    
+    Side Effects 
+    ------------
+    - If ``datamodule_cfg`` is ``str`` but ``ckpt_pth`` is None:
+        - The ``datamodule_cfg`` is extracted from the ``.pkl`` file and the model and 
+          datamodule is configured. But EVERYTHING remains in memory
+    - If ``ckpt_pth`` is NOT None:
+        - The ``datamodule_cfg`` can either be ``dict`` or ``str``.
+            - If ``dict``, the datamodule is directly configured using the dict, but this 
+              is dangerous as the configurations should be exactly the same otherwise the 
+              model pipeline will not behave as intented
+            - If ``str``, the datamodule config is extracted from the pickel file and then 
+              the datamodule is configured. This pickle file is created when the checkpoint 
+              is created for the model.
+    
+    """
+    def __init__(self, model_cfg, trainer_cfg, datamodule_cfg, ckpt_path=None):
         self.model_cfg = model_cfg or {}
         self.datamodule_cfg = datamodule_cfg or {}
         self.trainer_cfg = trainer_cfg or {}
@@ -688,6 +721,7 @@ class Model_pkg:
         return model
 
     def fit(self, dataset, save_ckpt=False, ckpt_dir="checkpoints"):
+        
         # add checkpoint callback if requested
         callbacks = []
         if save_ckpt:
@@ -713,11 +747,13 @@ class Model_pkg:
             return checkpoint_cb.best_model_path
         return None
 
-    def predict(self, dataset, ckpt_path=None):
+    def predict(self, dataset, mode, return_info, write_interval, output_dir,
+                trainer_kwargs, **anyother_param_and_kwargs):
         predict_dm = self._build_datamodule(dataset)
         dataloader= self._create_dataloaders(predict_dm)
-        model = self.model_cls.load_from_checkpoint(ckpt_path) if ckpt_path else self.model
-        preds = self.model.predict(model, dataloader)
+        preds = self.model.predict(dataloader, mode, return_info,write_interval, 
+                                   output_dir, trainer_kwargs, 
+                                   **anyother_param_and_kwargs)
         return preds
 
     def _build_datamodule(self, dataset):

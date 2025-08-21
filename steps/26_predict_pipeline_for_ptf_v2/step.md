@@ -454,7 +454,6 @@ preds = pkg.predict(test_dataset, mode= "raw", ...)
 # Train + save
 pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
 pkg.fit(train_dataset, save_ckpt=True)
-# -> Lightning saves checkpoint automatically
 
 # Later, in a new session:
 pkg2 = model_pkg(trainer_cfg=trainer_cfg, ckpt_path="checkpoints/last.ckpt",  datamodule_cfg="checkpoints/dm_cfg.pkl")
@@ -678,27 +677,27 @@ class Model_pkg:
         Model configs for the initialisation of model.
     trainer_cfg : dict
         configs to initialise ``Lightning.Trainer``.
-    datamodule_cfg : dict or str
+    datamodule_cfg : Union[dict, Path]
         configs to initialise ``LightningDataModule``.
         
         - If dict, the keys and values are used as configuration parameters 
           to initialize the ``LightningDataModule`` directly.
-        - If str, it should be a filesystem path to a ``.pkl`` file containing
+        - If Path, it should be a filesystem path to a ``.pkl`` file containing
           the serialized configuration dictionary. 
-    ckpt_path : str, optional
+    ckpt_path : Path, optional
         Path to the checkpoint from where the model would be loaded
     
     Side Effects 
     ------------
-    - If ``datamodule_cfg`` is ``str`` but ``ckpt_pth`` is None:
+    - If ``datamodule_cfg`` is ``Path`` but ``ckpt_pth`` is None:
         - The ``datamodule_cfg`` is extracted from the ``.pkl`` file and the model and 
           datamodule is configured. But EVERYTHING remains in memory
     - If ``ckpt_pth`` is NOT None:
-        - The ``datamodule_cfg`` can either be ``dict`` or ``str``.
+        - The ``datamodule_cfg`` can either be ``dict`` or ``path``.
             - If ``dict``, the datamodule is directly configured using the dict, but this 
               is dangerous as the configurations should be exactly the same otherwise the 
               model pipeline will not behave as intented
-            - If ``str``, the datamodule config is extracted from the pickel file and then 
+            - If ``Path``, the datamodule config is extracted from the pickel file and then 
               the datamodule is configured. This pickle file is created when the checkpoint 
               is created for the model.
     
@@ -709,7 +708,7 @@ class Model_pkg:
       Call ``pkg.fit(dataset, ...)`` to train and optionally save checkpoints.
     
     - Load pretrained model: 
-      Provide ``trainer_cfg`` + ``ckpt_path`` + ``datamodule_cfg`` (as str). 
+      Provide ``trainer_cfg`` + ``ckpt_path`` + ``datamodule_cfg`` (as Path). 
       The datamodule configuration is restored from the serialized pickle.
     
     - Train, then reload later: 
@@ -719,7 +718,7 @@ class Model_pkg:
       
     Examples
     --------
-    **1. Train from scratch**
+    1. Train from scratch
     
     >>> model_cfg = dict(hidden_size=64, num_layers=2, attention_head_size=4)
     >>> trainer_cfg = dict(max_epochs=5, accelerator="auto", devices=1)
@@ -729,7 +728,7 @@ class Model_pkg:
     >>> pkg.fit(train_dataset)
     >>> preds = pkg.predict(test_dataset, mode="raw")
     
-    **2. Load pretrained model**
+    2. Load pretrained model
     
     >>> trainer_cfg = dict(max_epochs=5, accelerator="auto", devices=1)
     >>> pkg = model_pkg(
@@ -739,7 +738,7 @@ class Model_pkg:
     ... )
     >>> preds = pkg.predict(test_dataset, mode="raw")
     
-    **3. Train, then reload later**
+    3. Train, then reload later
     
     >>> # Train + save
     >>> pkg = model_pkg(model_cfg, trainer_cfg=trainer_cfg, datamodule_cfg=datamodule_cfg)
@@ -771,8 +770,51 @@ class Model_pkg:
 
         return model
 
-    def fit(self, dataset, save_ckpt=False, ckpt_dir="checkpoints"):
-        
+    def fit(self, data, save_ckpt=False, ckpt_dir="checkpoints", skip_info=None, **kwargs):
+        """ Fit wrapper for the model
+
+        Internally calls the ``model.fit()``
+
+        Parameters
+        ----------
+        data : D1 layer or D2 layer
+            Trainind data
+            - If D1 Layer: D2 layer is constructed which is fed to the Model Layer for 
+                fitting
+            - If D2 Layer: It is directly fed to Model Layer for fitting
+
+        save_ckpt: bool, Optional
+            Whether to save the ckpt or not
+
+        ckpt_dir : Path, Optional 
+            Path to the directory where to save the checkpoint.
+        skip_info : list of str
+            skip some info that you dont want to save inside the checkpoint, like 
+            ``datmodule_cfg`` etc, None by default.
+        kwargs:
+            Kwargs for the ``ModelCheckpoint`
+
+        Side Effects
+        ------------
+        - If ``save_ckpt`` is False
+            The model is trained and saved IN-MEMORY
+        - If ``save_ckpt`` is True
+            - If ``ckpt_dir`` is not set up by the user
+                It will save the model checkpoint(saves the best model, by default) and 
+                other info like  ``datamodule_cfg``, ``scaler`` etc. The user can decide
+                to not to save some things like ``datamodule_cfg`` by setting up 
+                ``skip_info``. As the user didnt set up the ``ckpt_dir``, everything will
+                be stored inside "checkpoints" folder, with special folder for each info
+                like - subfolder ""datamodule_cfg"" for the ``datamodule_cfg``, subfolder
+                "scaler" for ``scaler`` etc
+            - If ``ckpt_dir`` is set up by the user
+                It will save the model checkpoint(saves the best model, by default) and 
+                other info like  ``datamodule_cfg``, ``scaler`` etc. The user can decide
+                to not to save some things like ``datamodule_cfg`` by setting up 
+                ``skip_info``. Everything will be stored inside the specified folder, 
+                with special folder for each info like - subfolder ""datamodule_cfg"" 
+                for the ``datamodule_cfg``, subfolder "scaler" for ``scaler`` etc
+        """
         # add checkpoint callback if requested
         callbacks = []
         if save_ckpt:
@@ -788,8 +830,8 @@ class Model_pkg:
         # build trainer
         self.trainer = Trainer(callbacks=callbacks, **self.trainer_cfg)
 
-        # datamodule + model
-        self.datamodule = self._build_datamodule(dataset)
+        if data isinstance(D1 Layer)
+        self.datamodule = self._build_datamodule(data)
 
         self.trainer.fit(self.model, self.datamodule)
 
@@ -800,6 +842,61 @@ class Model_pkg:
 
     def predict(self, dataset, mode, return_info, write_interval, output_dir,
                 trainer_kwargs, **anyother_param_and_kwargs):
+        """Predict wrapper for the ``model.predict()``
+
+        Parameters
+        ----------
+        data :  D1 Layer, D2 Layer or DataLoader
+            - If D1 Layer: D2 layer is constructed, which then loads the loaders which are
+                fed to the model layer for fitting
+            - If D2 Layer: Package class laods the loaders which are then fed to 
+                Model Layer for fitting
+            - If dataloder: It is directly fed to the Model layer
+            
+        mode : str
+            The prediction mode. One of "prediction", "quantiles", or "raw".
+            
+            - "prediction": Returns final predictions.
+            - "quantiles": Returns a forecast for each quantile defined in the
+                model's loss function.
+            - "raw": Returns the raw, unprocessed output of the network.
+            
+        return_info : Optional[List[str]], default=None
+            A list specifying which additional information to return alongside
+            predictions. Valid entries:
+            
+                - "index" : Return the group and time indices for each prediction.
+                - "x" : Return the full input dictionary (`x`) for each prediction.
+                - "y" : Return the actual target values (`y`) corresponding to predictions.
+                - "decoder_lengths" : Return the lengths of the decoder sequence.
+                
+            If None or empty, only predictions are returned.
+        output_dir : Optional[str]
+            Path to a directory where predictions can be saved. 
+            
+        trainer_kwargs:
+            kwargs for `Trainer`
+        **kwargs:
+            Additional keyword arguments passed to the model's processing methods,
+            such as `to_prediction()` or `to_quantiles()`. For example, you can
+            override the default quantiles by passing `quantiles=[0.1, 0.5, 0.9]`.
+
+
+        Returns
+        -------
+        Dict[str, Any]
+            The final, collated prediction result tensors.
+
+        Notes
+        -----
+        If want to load from a checkpoint, you first need to do something like this
+        >>> pkg = model_pkg(
+        ...     trainer_cfg=trainer_cfg,
+        ...     ckpt_path="checkpoints/last.ckpt",
+        ...     datamodule_cfg="checkpoints/dm_cfg.pkl"
+        ... )
+        >>> preds = pkg.predict(test_dataset, mode="raw") 
+        """
         predict_dm = self._build_datamodule(dataset)
         dataloader= self._create_dataloaders(predict_dm)
         preds = self.model.predict(dataloader, mode, return_info,write_interval, 

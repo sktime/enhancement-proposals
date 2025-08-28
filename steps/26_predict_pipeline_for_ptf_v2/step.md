@@ -1,3 +1,5 @@
+from ufw.util import write_to_file
+
 # Design Document for Prediction pipeline of `ptf-v2`
 ## Table of Contents
 [TOC]
@@ -320,7 +322,7 @@ From the above, we identify key requirements:
 
 5. Trainer integration
     * Implemented via `trainer.predict()` for consistency with Lightning.
-    * Use a dedicated `PredictCallback` for extensibility and disk writing.
+    * Use a dedicated `PredictCallback` for extensibility.
 ### Design Principles
 The design follows these principles:
 * **Separation of responsibility:** Prediction logic lives in `.predict()`, processing logic in `to_prediction()`/`to_quantiles()`, and formatting logic in utilities like `to_dataframe()`.
@@ -334,7 +336,6 @@ The proposed `.predict()` system for v2:
     * A `TimeSeries` Dataset, `DataModule` or `DataLoader`.
     * A mode (`prediction`, `quantiles`, `raw`).
     * Optional `return_info` list.
-    * Optional `output_dir` for disk writing.
     * Any additional Trainer kwargs.
 
 * Internally:
@@ -342,7 +343,6 @@ The proposed `.predict()` system for v2:
   * `PredictCallback`:
     * Processes raw outputs via `model.to_prediction()` or `model.to_quantiles()`.
     * Collects additional requested info.
-    * Writes to disk if configured.
   * Once prediction is complete, `PredictCallback.result` returns a dictionary of tensors.
 
 * Post-processing:
@@ -360,7 +360,7 @@ Some things that we should borrow:
     * `raw`
 * Use of `PredictCallback`
 
-    We could use `trainer.predict()` to make the predictions, but `PredictCallBack` provides some special customisations like a way to save the predictions directly in a `output_dir` and customised prediction writing to the output_dir at epoch_end or batch_end. `model.predict()` will internally call `trainer.predict()` but with `callback=PredictCallBack`.
+    We could use `trainer.predict()` to make the predictions, but `PredictCallBack` will handle the `mode` of prediction. `model.predict()` will internally call `trainer.predict()` but with `callback=PredictCallBack`.
 * `model.predict()` should accept D2 layer or the dataloaders.
 
 
@@ -368,6 +368,7 @@ Other important features:
 * We should add some inbuilt util function that provides the final dataframe (or csv file, if predictions are very large to be saved in a memory) from the prediction tensors (if mode="prediction").
 * predict should return a `dict` of tensors (or a D1 layer?).
 * We should also add some utils to plot predictions and the actual values
+* The `tensors` are changed to `dataframe` (or csv) in package layer. The model layer will work only with tensors, it will always input 
 
 #### The Layered Approach
 As suggested by @fkiraly, we can try a layered approach similar to the OSI model of Computer Networks. The model has multiple layers, and the data is transferred from one layer to another.
@@ -406,7 +407,6 @@ Key points:
 * `data` can be D1 Dataset object, D2 DataModule or a PyTorch DataLoader.
 * `mode` determines output processing function (`to_prediction()`, `to_quantiles()`, or no processing).
 * `return_info` specifies extra metadata to include.
-* `output_dir` enables large-scale predictions without RAM bottlenecks.
 
 #### The Package Layer
 The Package Layer will wrap the whole `Lightning` workflow. This would make the flow very streamlined and user don't have to import `trainer` and define it, it will be handled by the `_pkg` class.
@@ -475,7 +475,7 @@ preds = pkg2.predict(new_dataset)
     * This callback:
        * Calls the model’s `to_prediction()` / `to_quantiles()` based on mode.
        * Collects any requested metadata.
-       * Either accumulates results in-memory or writes to `output_dir`.
+       * Returns `dict` of `tensors`
 
 3. Run predictions
 
@@ -488,8 +488,7 @@ preds = pkg2.predict(new_dataset)
    * To still benefit from `PredictCallback` when using `trainer.predict()` directly, users must import and attach it manually.
 
 4. Return structured results
-    * If `output_dir` is `None`, return `dict[str, torch.Tensor]`.
-    * If `output_dir` is set, return `None` (data is on disk).
+    *  return `dict[str, torch.Tensor]`.
 
 ### Processing Functions
 * `to_prediction(batch_output)`
@@ -840,7 +839,7 @@ class Model_pkg:
             return checkpoint_cb.best_model_path
         return None
 
-    def predict(self, dataset, mode, return_info, write_interval, output_dir,
+    def predict(self, dataset, mode, return_info, write_interval, output_dir, to_dataframe,
                 trainer_kwargs, **anyother_param_and_kwargs):
         """Predict wrapper for the ``model.predict()``
 
@@ -873,6 +872,10 @@ class Model_pkg:
             If None or empty, only predictions are returned.
         output_dir : Optional[str]
             Path to a directory where predictions can be saved. 
+        
+        to_dataframe: bool
+            Whether to change the tensors to dataframe or not. Requires ``return_info``
+            to have atleast ``index``, and ``mode`` to be ``predicition``.
             
         trainer_kwargs:
             kwargs for `Trainer`
@@ -899,10 +902,28 @@ class Model_pkg:
         """
         predict_dm = self._build_datamodule(dataset)
         dataloader= self._create_dataloaders(predict_dm)
-        preds = self.model.predict(dataloader, mode, return_info,write_interval, 
-                                   output_dir, trainer_kwargs, 
-                                   **anyother_param_and_kwargs)
-        return preds
+        # if to_dataframe is False and output_dir is not None, tensors will get written 
+        # to the disk    
+        if output_dir:
+            for each interval in write_interval:
+                preds = self.model.predict(dataloader, mode, return_info,write_interval, 
+                                           output_dir, trainer_kwargs, 
+                                           **anyother_param_and_kwargs)
+                if to_dataframe:
+                    preds = utils.to_dataframe(preds)
+                
+                self.write_to_disk(preds, output_dir)
+
+        else:
+            preds = self.model.predict(dataloader, mode, return_info,write_interval, 
+                                           output_dir, trainer_kwargs, 
+                                           **anyother_param_and_kwargs)
+            if to_dataframe:
+                preds = utils.to_dataframe(preds)
+            return preds
+    
+    def write_to_disk(self, data, output_dir):
+        # write the data to disk
 
     def _build_datamodule(self, dataset):
         return DataModule(dataset, **self.datamodule_cfg)
@@ -944,11 +965,6 @@ class PredictCallback(BasePredictionWriter):
             - "decoder_lengths" : Return the lengths of the decoder sequence.
             
         If None or empty, only predictions are returned.
-    write_interval : str, default="batch"
-        When to perform the collection step.
-    output_dir : Optional[str]
-        Path to a directory where predictions can be saved. If provided,
-        predictions will be written to files in this directory.
 
     Attributes
     ----------
@@ -1015,31 +1031,13 @@ class PredictCallback(BasePredictionWriter):
             # save y
             
         # other logic
-        
-        
-    def write_on_batch_end(
-        self,
-        trainer,
-        pl_module,
-        prediction,
-        batch_indices,
-        batch,
-        batch_idx,
-        dataloader_idx,
-    ):
-        # write the data
-        
-        self._reset_data()
     
     # anyother function if required
  
             
     @property
     def result:
-        if self.mode=="prediction":
-            result = self.get_final_preds(self.return_type)
-        else:
-            result = self._result
+        result = self._result
         return result
 ```
 * ***`model.predict()`***
@@ -1085,8 +1083,6 @@ def predict(
             - "decoder_lengths" : Return the lengths of the decoder sequence.
             
         If None or empty, only predictions are returned.
-    output_dir : Optional[str]
-        Path to a directory where predictions can be saved. 
         
     trainer_kwargs:
         kwargs for `Trainer`
@@ -1105,8 +1101,6 @@ def predict(
     predict_callback=PredictCallback(
             mode=mode,
             return_info = return_info,
-            write_interval=write_interval,
-            output_dir=output_dir,
             **kwargs
     )
     trainer_kwargs.setdefault(

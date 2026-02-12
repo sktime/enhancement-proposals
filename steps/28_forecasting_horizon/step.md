@@ -2,21 +2,15 @@
 
 Contributors: [RecreationalMath]
 
-## Introduction
-
-[concise introduction to problem and overview of proposed solution]
-
-For preliminary discussions of the proposal presented here, 
-see [sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) 
-<!-- draft [sktime/PR#]() -->
-
 ## Table of Contents
 [TOC]
 
 ## Problem statement & Motivation
 `ForecastingHorizon` is strongly coupled with `pandas.Index` and often leads to breakages as `pandas` makes inconsistent updates to their `Index` in every subsequent major/minor release. They neither seem to be following a consistent pattern for the updates nor going in the direction of a single ideal. So decoupling it is the pragmatic solution to keep the maintenance load to a minimum going forward.
 
+[Github sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) 
 
+<!-- draft PR [sktime/#]() -->
 
 ## Discussion and comparison of alternative solutions
 
@@ -60,12 +54,12 @@ A lot of the below points are interlinked and might have some repetition, but co
     - Q4.2 For frequency management (the complex freq property with setter) since a lot of breakages happen here, is there a way to make it optional instead of required? Will it break anything?
 
 5. MultiIndex support
-    - This is a new feature request. Can be done but the approach might depend on answers to other questions, i.e. how much away or close the picked end-state is to pandas.
+    - This is a new feature request. Can be done but the approach will depend on answers to other questions, i.e. how much away or close the picked end-state is to pandas.
 
 6. Performance & Caching
 
 I'm a bit rusty on my threading/caching/memory-leakages concepts and have used AI coding assistant's help in deliberating this part. Would appreciate inputs here. 
-Mentioning some concerns from my limited understanding, please feel free to validate/invalidate these.
+Please feel free to validate/invalidate below points.
 
 - Hashability concerns: 
     - aren't pandas Index objects hashable? 
@@ -76,7 +70,7 @@ Mentioning some concerns from my limited understanding, please feel free to vali
 
 7. Maintenance load
 
-it seems edge-cases (and corresponging workarounds) will always be needed as long as there exists a code internal to `ForecastingHorizon` which converts to or from pandas objects. Unless that piece is specifically moved out and exposed to end-user and forcing them to make it part of their forecasting pipeline. It will still break, but the fault localisation for the end-user might be easier and some heavy users might choose to write their own wrappers on top of `sktime` provided convertor utility. Giving end-users a way to fix their broken pipelines and also maybe sharing the blame for breakages with pandas. 
+it seems edge-cases (and corresponding workarounds) will always be needed as long as there exists a code internal to `ForecastingHorizon` which converts to or from pandas objects. Unless that piece is specifically moved out and exposed to end-user and forcing them to make it part of their forecasting pipeline. Even after doing so, it will still break, but the fault localisation for the end-user might be easier and some heavy users might choose to write their own wrappers on top of `sktime` provided convertor utility. Giving end-users a way to fix their broken pipelines and also maybe sharing the blame for breakages with pandas. 
 
 ## Description of proposed solution
 

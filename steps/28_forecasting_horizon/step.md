@@ -1,6 +1,13 @@
-# Design Document for ForecastingHorizon
+# ForecastingHorizonV2
 
 Contributors: [RecreationalMath]
+
+## Introduction
+
+[WIP] This STEP is an enhacement proposal concerning the `ForecastingHorizon`
+To understand the problem and the need for rework, please see [Github sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) and refer next two sections.
+
+
 
 ## Table of Contents
 [TOC]
@@ -8,9 +15,60 @@ Contributors: [RecreationalMath]
 ## Problem statement & Motivation
 `ForecastingHorizon` is strongly coupled with `pandas.Index` and often leads to breakages as `pandas` makes inconsistent updates to their `Index` in every subsequent major/minor release. They neither seem to be following a consistent pattern for the updates nor going in the direction of a single ideal. So decoupling it is the pragmatic solution to keep the maintenance load to a minimum going forward.
 
-[Github sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) 
+## Open issues 
+
+A list of all the open issues related to `ForecastingHorizon`. This shall shed light on various enhancements needed and also result in some house-keeping by closing ir-relevant open issues on the topic.
+
+- [sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) 
+- [sktime/Issue#7610](https://github.com/sktime/sktime/issues/7610)
+- [sktime/Issue#2214](https://github.com/sktime/sktime/issues/2214)
+- [sktime/Issue#956](https://github.com/sktime/sktime/issues/956)
+- [sktime/Issue#8993](https://github.com/sktime/sktime/issues/8993)
+- [sktime/Issue#2376](https://github.com/sktime/sktime/issues/2376)
+- [sktime/Issue#4330](https://github.com/sktime/sktime/issues/4330)
+- [sktime/Issue#9360](https://github.com/sktime/sktime/issues/9360)
+- [sktime/Issue#4721](https://github.com/sktime/sktime/issues/4721)
+- [sktime/Issue#5131](https://github.com/sktime/sktime/issues/5131)
+- [sktime/Issue#6245](https://github.com/sktime/sktime/issues/6245)
+- [sktime/Issue#4698](https://github.com/sktime/sktime/issues/4698)
+- [sktime/Issue#2807](https://github.com/sktime/sktime/issues/2807)
 
 <!-- draft PR [sktime/#]() -->
+
+## Requirements
+
+<!--
+| Requirement  | Problem in V1 | Improvement expected in V2 |
+| ------------- | ------------- | ------------- |
+|   |   |  |
+|   |   |  |
+-->
+
+- ability to represent absolute and relative horizons
+- ability to represent iloc, loc, time- and period-like indices
+- ability to represent discontinuous or irregular horizons
+- coercion ability, e.g., from iterables of integers
+- decoupling from pandas, handling of the coupling in a separate, isolated layer
+- possibly separate layer: ability to infer frequencies from abstract representation objects as in datatypes
+- downwards compatibility as much as possible
+
+## Ideas
+
+#### Idea 1: Utilize an already existing sequence type sktime base object that can be extended to implement the ForecastingHorizon
+- according to Franz, no such base object currently exists in sktime
+- Check if such a behaviour can be abstracted out from an existing class. If there exists a bunch of such classes then abstracting out the base sequence type behaviour would make a lot of sense.
+- `ForescastingHorizon` and `Lag` seem to be two such classes that would benefit from this abstracting out idea.
+
+#### Idea 2: Implement a new sktime base object for handling sequence type
+
+**Questions**
+- Would `sktime` benefit in future from having a sequence type base object that can later be extended to implement other functionalities? such as `ForecastingHorizon` from our current requirement. If yes, then we design a base sequence type and then design a `ForecastingHorizon` class that inherits from the sktime base sequence type.
+- Similar point raised in [sktime/Issue#9360](https://github.com/sktime/sktime/issues/9360)
+
+#### Idea 3: Implement a new sktime base object for `ForecastingHorizon`
+- Same idea as above but instead of implmenting two class: `base_sequence_type` -> `ForecastingHorizonV2`, here we only implement one class `ForecastingHorizonV2`.
+
+
 
 ## Discussion and comparison of alternative solutions
 

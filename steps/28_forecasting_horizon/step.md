@@ -57,7 +57,7 @@ A list of all the open issues related to `ForecastingHorizon`. This shall shed l
 #### Idea 1: Utilize an already existing sequence type sktime base object that can be extended to implement the ForecastingHorizon
 - according to Franz, no such base object currently exists in sktime
 - Check if such a behaviour can be abstracted out from an existing class. If there exists a bunch of such classes then abstracting out the base sequence type behaviour would make a lot of sense.
-- `ForescastingHorizon` and `Lag` seem to be two such classes that would benefit from this abstracting out idea.
+- `ForescastingHorizon` and `Lag` seem to be two such classes that would benefit from this abstracting out idea. Update: Though there is some similarity between lags, freq from Lag class and values,freq from the ForecastingHorizon class, they are fundamentally different. Index v/s Series.
 
 #### Idea 2: Implement a new sktime base object for handling sequence type
 
@@ -90,15 +90,27 @@ A lot of the below points are interlinked and might have some repetition, but co
         - If we want to ensure absolutely no breakage with regards to `freq` mnemonics change, the onus of converting to a `ForecastingHorizon` compatible input type needs to be transfered to the end-user. `sktime` can obviously help by provide a utility for conversion. But if we do two things will happen. 
             1. current working workflows of end-users will break. We can use deprecation and handle it gracefully.
             2. yt will add one extra step before/after using the sktime forecasters -> to convert the forecasting horizon from pandas to fh_compatible input types. Seems tedious, need inputs and thoughts.
+    - Answer1.1 
+        - drop-in replacement
+        - refactor to localize all pandas related code to a conversion layer
+        - internal representation based on numpy arrays
+        - all currently supported input types should still be supported
+
     
 
 2. Internal Data Representation
 
     - Q2.1 Should the class still support all input types (int, list, np.ndarray, pd.Index, timedelta, date offsets)?
     - Consideration: Same concern as above. If we support the pandas objects as input types, there would always be a chance of breakages whenever pandas makes changes as it currently happens. (When our convertor tries to convert an unseen freq type to map it to the internal representation of the custom `fh`)
+    - Answer2.1
+        - all currently supported input types should still be supported
+        - conversion should happen externally and not internal to the forecasting horizon class
+
     - Q2.2: Instead of wrapping pd.Index, what should be the primary internal representation?
     - Option A: numpy arrays for numeric values + custom metadata objects (least coupling with pandas)
     - Option B: WILD IDEA!! what if instead of de-coupling we embrace the pandas fully and don't write converters but use pandas objects directly? Need investigation on what changes would that wrrant.
+    - Answer2.2
+        - Option A chosen
 
     
 3. Pandas Interoperability (between different parts of sktime)
@@ -109,6 +121,9 @@ A lot of the below points are interlinked and might have some repetition, but co
 4. Type Handling & Frequency Management
 
     - Q4.1 For relative vs. absolute distinction, what are the tradeoffs between keeping the current type-based approach (inferring from value types) v/s using explicit metadata/flags instead?
+    - Answer4.1
+        - infer from the type
+        - avoid enforcing strict requirement on inputs from user, if it can be inferred.
     - Q4.2 For frequency management (the complex freq property with setter) since a lot of breakages happen here, is there a way to make it optional instead of required? Will it break anything?
 
 5. MultiIndex support
@@ -125,6 +140,8 @@ Please feel free to validate/invalidate below points.
 - Cache and thread safety concerns: 
     - if many instances are created - is this implementation memory safe? 
     - does lru_cache exhibit thread-safety?
+
+
 
 7. Maintenance load
 

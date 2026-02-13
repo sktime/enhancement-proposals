@@ -15,7 +15,7 @@ To understand the problem and the need for rework, please see [Github sktime/Iss
 ## Problem statement & Motivation
 `ForecastingHorizon` is strongly coupled with `pandas.Index` and often leads to breakages as `pandas` makes inconsistent updates to their `Index` in every subsequent major/minor release. They neither seem to be following a consistent pattern for the updates nor going in the direction of a single ideal. So decoupling it is the pragmatic solution to keep the maintenance load to a minimum going forward.
 
-## Open issues 
+## Open issues & PRs
 
 A list of all the open issues related to `ForecastingHorizon`. This shall shed light on various enhancements needed and also result in some house-keeping by closing ir-relevant open issues on the topic.
 
@@ -32,6 +32,9 @@ A list of all the open issues related to `ForecastingHorizon`. This shall shed l
 - [sktime/Issue#6245](https://github.com/sktime/sktime/issues/6245)
 - [sktime/Issue#4698](https://github.com/sktime/sktime/issues/4698)
 - [sktime/Issue#2807](https://github.com/sktime/sktime/issues/2807)
+
+PRs
+- [sktime/PR#8531](https://github.com/sktime/sktime/pull/8531)
 
 <!-- draft PR [sktime/#]() -->
 
@@ -149,7 +152,10 @@ it seems edge-cases (and corresponding workarounds) will always be needed as lon
 
 ## Description of proposed solution
 
-Being deliberated upon.
+`ForecastingHorizon` to be split into three classes:
+1. `ForecastingHorizonV2` - the new class with the same interface as `ForecastingHorizon` but with an internal representation decoupled from pandas. It will be a drop-in replacement for `ForecastingHorizon` and will be the main class going forward.
+2. `FHValues` - a new base class that handles the functionality currently outsourced to pandas. It will be used internally by `ForecastingHorizonV2` to manage the values and frequencies.
+3. `PandasFHConverter` - a separate utility class that handles the conversion between pandas objects and the internal representation used by `ForecastingHorizonV2`. This class will be responsible for managing the coupling with pandas and will be the only part of the code that interacts directly with pandas objects.
 
 ## Detailed description of design and implementation of proposed solution 
 TBD.

@@ -47,13 +47,15 @@ PRs
 |   |   |  |
 -->
 
-- ability to represent absolute and relative horizons
-- ability to represent iloc, loc, time- and period-like indices
-- ability to represent discontinuous or irregular horizons
-- coercion ability, e.g., from iterables of integers
-- decoupling from pandas, handling of the coupling in a separate, isolated layer
-- possibly separate layer: ability to infer frequencies from abstract representation objects as in datatypes
-- downwards compatibility as much as possible
+1. ability to represent absolute and relative horizons
+2. ability to represent iloc, loc, time- and period-like indices
+3. ability to represent discontinuous or irregular horizons
+4. coercion ability, e.g., from iterables of integers
+5. decoupling from pandas, handling of the coupling in a separate, isolated layer
+6. possibly separate layer: ability to infer frequencies from abstract representation objects as in datatypes
+7. downwards compatibility as much as possible
+8. support for multi-index forecasting horizons (new feature request)
+9. support for `upto` as discussed in [sktime/PR#8531](https://github.com/sktime/sktime/pull/8531) (new feature request)
 
 ## Ideas
 
@@ -158,4 +160,46 @@ it seems edge-cases (and corresponding workarounds) will always be needed as lon
 3. `PandasFHConverter` - a separate utility class that handles the conversion between pandas objects and the internal representation used by `ForecastingHorizonV2`. This class will be responsible for managing the coupling with pandas and will be the only part of the code that interacts directly with pandas objects.
 
 ## Detailed description of design and implementation of proposed solution 
-TBD.
+
+### `ForecastingHorizonV2`
+- This will be the main class that users interact with. 
+- It will have the same interface as the current `ForecastingHorizon` to ensure backward compatibility, but internally it will use `FHValues` to manage the forecasting horizon values and frequencies.
+
+#### Parameters
+
+#### Attributes
+
+#### Properties
+
+#### Methods
+- `__init__`: will accept the same parameters as the current `ForecastingHorizon` but will convert them to the internal representation using `PandasFHConverter` if they are pandas objects.
+- Need for copy constructor: 
+    - Consideration1: 
+        - the conversion from pandas types to internal representation is done as first step in __init__, and the resulting FHValues instance is stored as an attribute. 
+        - Internal methods such as `to_relative` and `to_absolute` will generate new and valid FHValues instances, so when these new and valid `FHValues` instances will be used to create new `ForecastingHorizonV2` instances, going through the conversion step again will be redundant.
+    - Consideration2: 
+
+
+
+### `FHValues`
+
+#### Parameters
+
+#### Attributes
+
+#### Properties
+
+#### Methods
+
+
+### `PandasFHConverter`
+conversion layer
+
+#### Parameters
+
+#### Attributes
+
+#### Properties
+
+#### Methods
+

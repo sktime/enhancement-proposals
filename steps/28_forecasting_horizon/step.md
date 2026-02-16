@@ -228,7 +228,7 @@ Read-only properties, with only getter methods:
 - `min() -> int`
 - `is_contiguous() -> bool` — for int64, just check `len == max - min + 1` (for INT/PERIOD); for TIMEDELTA/DATETIME, check uniform spacing via `np.diff`
 - `copy() -> FHValues`
-- `_new(values=None, value_type=None, freq=None, timezone=None) -> FHValues` — factory creating new instance reusing current metadata for unspecified args. To avoid redundant checks when creating a new instance with already validated values/metadata.
+- `_new(values, value_type, freq, timezone=) -> FHValues` — copy constructor creating new instance reusing current metadata for unspecified args. To avoid redundant checks when creating a new instance with already validated values/metadata. Some checks might still be needed, e.g., freq must be provided for PERIOD, but checks like sorting/deduping values can be skipped since they are already guaranteed by the current instance.
 
 
 

@@ -1,6 +1,6 @@
 # ForecastingHorizonV2
 
-Contributors: [RecreationalMath, fkiraly]
+Contributors: [@RecreationalMath, @fkiraly]
 
 ## Introduction
 

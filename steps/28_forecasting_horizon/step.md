@@ -1,6 +1,6 @@
 # ForecastingHorizonV2
 
-Contributors: [RecreationalMath]
+Contributors: [RecreationalMath, fkiraly]
 
 ## Introduction
 
@@ -159,6 +159,20 @@ it seems edge-cases (and corresponding workarounds) will always be needed as lon
 2. `FHValues` - a new base class that handles the functionality currently outsourced to pandas. It will be used internally by `ForecastingHorizonV2` to manage the values and frequencies.
 3. `PandasFHConverter` - a separate utility class that handles the conversion between pandas objects and the internal representation used by `ForecastingHorizonV2`. This class will be responsible for managing the coupling with pandas and will be the only part of the code that interacts directly with pandas objects.
 
+Idea proposed by @fkiraly: Uniform int64 Representation
+
+All four value types are stored as **int64** numpy arrays. The `FHValueType` enum + `freq` + `timezone` metadata provide semantic context for reconstruction.
+
+| Value Type | Internal int64 meaning | Reconstruction to pandas |
+|------------|----------------------|--------------------------|
+| `INT` | Integer steps (as-is) | `pd.Index(values, dtype=int)` |
+| `PERIOD` | Period ordinals | need to be ironed out |
+| `DATETIME` | Nanoseconds representation | `pd.DatetimeIndex(values.view('datetime64[ns]'), tz=timezone)` |
+| `TIMEDELTA` | Nanoseconds duration | `pd.TimedeltaIndex(values.view('timedelta64[ns]'))` |
+
+Benefits: uniform validation, contiguity checking, hashing, and arithmetic — all just integer operations.
+
+
 ## Detailed description of design and implementation of proposed solution 
 
 ### `ForecastingHorizonV2`
@@ -194,7 +208,7 @@ Corresponding validations in `__init__`:
 - `values` must be 1D np.ndarray with int64 dtype
 - `value_type` must be FHValueType
 - `freq` required when value_type is PERIOD
-- Sort and deduplicate values, raise an error on empty after dedup (current draft PR, doesn't enforce this, but it should)
+- Sort and deduplicate `values`, raise an error on empty after dedup (current draft PR, doesn't enforce this, but it should)
 
 
 #### Attributes

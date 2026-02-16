@@ -184,12 +184,53 @@ it seems edge-cases (and corresponding workarounds) will always be needed as lon
 ### `FHValues`
 
 #### Parameters
+- `values`, 
+- `value_type`, 
+- `freq`, 
+- `timezone`
+
+
+Corresponding validations in `__init__`:
+- `values` must be 1D np.ndarray with int64 dtype
+- `value_type` must be FHValueType
+- `freq` required when value_type is PERIOD
+- Sort and deduplicate values, raise an error on empty after dedup (current draft PR, doesn't enforce this, but it should)
+
 
 #### Attributes
 
+Private attributes (currenlty the draft PR might have them as public, but they should be private with read-only properties):
+- `_values`: np.ndarray — always dtype int64, sorted and unique
+- `_value_type`: FHValueType
+- `_freq`: str | None — frequency string, required for PERIOD.
+- `_timezone`: str | None — timezone string for DATETIME only.
+- `_hash`: int | None - cached hash
+
 #### Properties
+Read-only properties, with only getter methods:
+- `values`, 
+- `value_type`, 
+- `freq`, 
+- `timezone`
+
 
 #### Methods
+
+- constructor `__init__(values, value_type, freq=None, timezone=None)`
+- `__len__`, 
+- `__getitem__` (returns new FHValues for slices, scalar for int index)
+- `__eq__`, 
+- `__hash__` (hash via `values.tobytes()` + metadata tuple)
+- `__repr__`
+- `is_relative_type() -> bool`, 
+- `is_absolute_type() -> bool`
+- `max() -> int`, 
+- `min() -> int`
+- `is_contiguous() -> bool` — for int64, just check `len == max - min + 1` (for INT/PERIOD); for TIMEDELTA/DATETIME, check uniform spacing via `np.diff`
+- `copy() -> FHValues`
+- `_new(values=None, value_type=None, freq=None, timezone=None) -> FHValues` — factory creating new instance reusing current metadata for unspecified args. To avoid redundant checks when creating a new instance with already validated values/metadata.
+
+
 
 
 ### `PandasFHConverter`

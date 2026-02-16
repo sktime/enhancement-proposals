@@ -161,7 +161,9 @@ it seems edge-cases (and corresponding workarounds) will always be needed as lon
 
 Idea proposed by @fkiraly: Uniform int64 Representation
 
-All four value types are stored as **int64** numpy arrays. The `FHValueType` enum + `freq` + `timezone` metadata provide semantic context for reconstruction.
+All four value types (`FHValueType`) are stored as **int64** numpy arrays. 
+
+The `FHValueType` enum + `freq` + `timezone` metadata provide semantic context for reconstruction.
 
 | Value Type | Internal int64 meaning | Reconstruction to pandas |
 |------------|----------------------|--------------------------|

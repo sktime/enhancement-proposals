@@ -169,7 +169,7 @@ The `FHValueType` enum + `freq` + `timezone` metadata provide semantic context f
 |------------|----------------------|--------------------------|
 | `INT` | Integer steps (as-is) | `pd.Index(values, dtype=int)` |
 | `PERIOD` | Period ordinals | need to be ironed out |
-| `DATETIME` | Nanoseconds representation | `pd.DatetimeIndex(values.view('datetime64[ns]'), tz=timezone)` |
+| `DATETIME` | Nanoseconds representation | `pd.DatetimeIndex(values.view('datetime64[ns]'), timezone=timezone)` |
 | `TIMEDELTA` | Nanoseconds duration | `pd.TimedeltaIndex(values.view('timedelta64[ns]'))` |
 
 Benefits: uniform validation, contiguity checking, hashing, and arithmetic — all just integer operations.
@@ -224,24 +224,24 @@ Benefits: uniform validation, contiguity checking, hashing, and arithmetic — a
   - Convert cutoff via `PandasFHConverter.cutoff_to_internal(cutoff)`
   - Freq inference: if `self.freq` is None, infer from cutoff (e.g., `PeriodIndex.freq`). Raise if no freq available and conversion requires it.
   - **INT (relative) + cutoff is PERIOD**: `absolute_vals = cutoff_int64 + values` → FHValues(type=PERIOD, freq=cutoff_freq)
-  - **INT (relative) + cutoff is DATETIME**: convert int steps to nanosecond offsets via freq (use `PandasFHConverter.steps_to_nanos(values, freq)`), then `absolute_vals = cutoff_int64 + nanos` → FHValues(type=DATETIME, tz=cutoff_tz)
+  - **INT (relative) + cutoff is DATETIME**: convert int steps to nanosecond offsets via freq (use `PandasFHConverter.steps_to_nanos(values, freq)`), then `absolute_vals = cutoff_int64 + nanos` → FHValues(type=DATETIME, timezoe=cutoff_tz)
   - **INT (relative) + cutoff is INT**: `absolute_vals = cutoff_int64 + values` → FHValues(type=INT)
-  - **TIMEDELTA (relative) + cutoff is DATETIME**: direct nanosecond addition `absolute_vals = cutoff_int64 + values` → FHValues(type=DATETIME, tz=cutoff_tz)
+  - **TIMEDELTA (relative) + cutoff is DATETIME**: direct nanosecond addition `absolute_vals = cutoff_int64 + values` → FHValues(type=DATETIME, timezone=cutoff_tz)
   - Wrap in new ForecastingHorizonV2 with `is_relative=False`
 
 - `to_pandas() -> pd.Index` — delegates to `PandasFHConverter.to_pandas_index(self._fhvalues)`
 - `to_numpy(**kwargs) -> np.ndarray` — returns `self._fhvalues.values.copy()`
-- `to_absolute_index(cutoff=None) -> pd.Index` — `self.to_absolute(cutoff).to_pandas()`
-- `to_absolute_int(start, cutoff=None) -> ForecastingHorizonV2` — convert to zero-based int index from start
+- `to_absolute_index(cutoff=None) -> pd.Index` 
+- `to_absolute_int(start, cutoff=None) -> ForecastingHorizonV2`: convert to zero-based int index from start
 
 **In-sample / out-of-sample methods:**
 
-- `_is_in_sample(cutoff=None) -> np.ndarray` — boolean array where relative values <= 0
-- `_is_out_of_sample(cutoff=None) -> np.ndarray` — boolean array where relative values > 0
-- `to_in_sample(cutoff=None) -> ForecastingHorizonV2` — filter using `_is_in_sample` mask
-- `to_out_of_sample(cutoff=None) -> ForecastingHorizonV2` — filter using `_is_out_of_sample` mask
-- `is_all_in_sample(cutoff=None) -> bool` — `self._is_in_sample(cutoff).all()`
-- `is_all_out_of_sample(cutoff=None) -> bool` — `self._is_out_of_sample(cutoff).all()`
+- `_is_in_sample(cutoff=None) -> np.ndarray`: boolean array where relative values <= 0
+- `_is_out_of_sample(cutoff=None) -> np.ndarray`: boolean array where relative values > 0
+- `to_in_sample(cutoff=None) -> ForecastingHorizonV2`: filter using `_is_in_sample` mask
+- `to_out_of_sample(cutoff=None) -> ForecastingHorizonV2`: filter using `_is_out_of_sample` mask
+- `is_all_in_sample(cutoff=None) -> bool`: single boolean describing if all values are in-sample
+- `is_all_out_of_sample(cutoff=None) -> bool`: single boolean describing if all values are out-of-sample
 
 **Indexer:**
 - `to_indexer(cutoff=None, from_cutoff=True) -> pd.Index`
@@ -332,9 +332,11 @@ Handles all accepted input types and converts to FHValues with int64 arrays:
 | `pd.RangeIndex` | `.to_numpy().astype(np.int64)`, type=INT |
 | `pd.TimedeltaIndex` | `.asi8` (int64 nanos), type=TIMEDELTA |
 | `pd.PeriodIndex` | `.asi8` (ordinals), type=PERIOD, freq from index |
-| `pd.DatetimeIndex` | `.asi8` (int64 nanos), type=DATETIME, tz from index |
+| `pd.DatetimeIndex` | `.asi8` (int64 nanos), type=DATETIME, timezone from index |
 | `pd.Index` (int dtype) | `.to_numpy().astype(np.int64)`, type=INT |
 | `pd.offsets.BaseOffset` | convert to timedelta then int64, type=TIMEDELTA |
+
+
 
 **Output conversion: `to_pandas_index(fhv: FHValues) -> pd.Index`**
 
@@ -342,8 +344,10 @@ Handles all accepted input types and converts to FHValues with int64 arrays:
 |------------|---------------|
 | INT | `pd.Index(fhv.values, dtype=int)` |
 | PERIOD | `pd.PeriodIndex(fhv.values.view('int64'), freq=fhv.freq)`, `pd.PeriodIndex.from_ordinals(fhv.values, freq=fhv.freq)` |
-| DATETIME | `pd.DatetimeIndex(fhv.values.view('datetime64[ns]'))` then `.tz_localize(tz)` if timezone |
+| DATETIME | `pd.DatetimeIndex(fhv.values.view('datetime64[ns]'))` then `.timezone_localize(timezone)` if timezone |
 | TIMEDELTA | `pd.TimedeltaIndex(fhv.values.view('timedelta64[ns]'))` |
+
+
 
 **Cutoff conversion:**
 - `cutoff_to_internal(cutoff, freq=None) -> tuple[np.int64, FHValueType, str|None]`
@@ -352,14 +356,18 @@ Handles all accepted input types and converts to FHValues with int64 arrays:
 - `cutoff_to_pandas(value, value_type, freq=None, timezone=None) -> pd.Index`
   - Reconstructs a single-element pd.Index from internal cutoff representation
 
+
+
 **Frequency helpers:**
 - `extract_freq(obj) -> str | None` — extract freq string from pd.Index, pd.offsets, forecaster, or string
 - `normalize_freq(freq_str) -> str` — normalize freq strings (e.g., "ME" → "M")
 - `freq_to_pandas_offset(freq_str) -> pd.offsets.BaseOffset` — only used when outputting to pandas
 - `steps_to_nanos(steps: np.ndarray, freq: str) -> np.ndarray` — convert integer steps to int64 nanosecond offsets using freq (e.g., 3 steps at "D" freq → 3 * 86400 * 1e9 nanos). Uses `pd.tseries.frequencies.to_offset(freq)` internally.
-- `nanos_to_steps(nanos: np.ndarray, freq: str) -> np.ndarray` — inverse: nanosecond durations to integer step counts
+- `nanos_to_steps(nanos: np.ndarray, freq: str) -> np.ndarray` — nanosecond durations to integer step counts
+
+
 
 **Prediction index helper (for `get_expected_pred_idx`):**
-- `build_pred_index(fh_pandas_idx, y, cutoff, sort_by_time) -> pd.Index` — fully implements the prediction index construction logic including MultiIndex/DataFrame handling. Moved here because it's heavily pandas-dependent. ForecastingHorizonV2.get_expected_pred_idx() delegates to this.
+- `build_pred_index(fh_pandas_idx, y, cutoff, sort_by_time) -> pd.Index` — prediction index construction logic including MultiIndex/DataFrame handling. Moved here because it's heavily pandas-dependent. ForecastingHorizonV2.get_expected_pred_idx() delegates to this.
 
 

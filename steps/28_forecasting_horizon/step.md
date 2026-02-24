@@ -254,8 +254,8 @@ Benefits: uniform validation, contiguity checking, hashing, and arithmetic — a
 
 **Prediction index:**
 - `get_expected_pred_idx(y=None, cutoff=None, sort_by_time=False) -> pd.Index`
-  - Uses `PandasFHConverter` to handle MultiIndex and DataFrame inputs
   - Constructs the expected output index matching current behavior
+  - mostly delegates to `PandasFHConverter.build_pred_index(...)` for the actual construction logic, since it is heavily pandas-dependent
 
 
 

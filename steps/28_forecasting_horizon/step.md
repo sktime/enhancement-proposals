@@ -1,0 +1,373 @@
+# ForecastingHorizonV2
+
+Contributors: [@RecreationalMath, @fkiraly]
+
+## Introduction
+
+[WIP] This STEP is an enhacement proposal concerning the `ForecastingHorizon`
+To understand the problem and the need for rework, please see [Github sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) and refer next two sections.
+
+Implementation of current design in progress at https://github.com/sktime/sktime/pull/9365
+
+## Table of Contents
+[TOC]
+
+## Problem statement & Motivation
+`ForecastingHorizon` is strongly coupled with `pandas.Index` and often leads to breakages as `pandas` makes inconsistent updates to their `Index` in every subsequent major/minor release. They neither seem to be following a consistent pattern for the updates nor going in the direction of a single ideal. So decoupling it is the pragmatic solution to keep the maintenance load to a minimum going forward.
+
+## Open issues & PRs
+
+A list of all the open issues related to `ForecastingHorizon`. This shall shed light on various enhancements needed and also result in some house-keeping by closing ir-relevant open issues on the topic.
+
+- [sktime/Issue#7617](https://github.com/sktime/sktime/issues/7617) 
+- [sktime/Issue#7610](https://github.com/sktime/sktime/issues/7610)
+- [sktime/Issue#2214](https://github.com/sktime/sktime/issues/2214)
+- [sktime/Issue#956](https://github.com/sktime/sktime/issues/956)
+- [sktime/Issue#8993](https://github.com/sktime/sktime/issues/8993)
+- [sktime/Issue#2376](https://github.com/sktime/sktime/issues/2376)
+- [sktime/Issue#4330](https://github.com/sktime/sktime/issues/4330)
+- [sktime/Issue#9360](https://github.com/sktime/sktime/issues/9360)
+- [sktime/Issue#4721](https://github.com/sktime/sktime/issues/4721)
+- [sktime/Issue#5131](https://github.com/sktime/sktime/issues/5131)
+- [sktime/Issue#6245](https://github.com/sktime/sktime/issues/6245)
+- [sktime/Issue#4698](https://github.com/sktime/sktime/issues/4698)
+- [sktime/Issue#2807](https://github.com/sktime/sktime/issues/2807)
+
+PRs
+- [sktime/PR#8531](https://github.com/sktime/sktime/pull/8531)
+
+<!-- draft PR [sktime/#]() -->
+
+## Requirements
+
+<!--
+| Requirement  | Problem in V1 | Improvement expected in V2 |
+| ------------- | ------------- | ------------- |
+|   |   |  |
+|   |   |  |
+-->
+
+1. ability to represent absolute and relative horizons
+2. ability to represent iloc, loc, time- and period-like indices
+3. ability to represent discontinuous or irregular horizons
+4. coercion ability, e.g., from iterables of integers
+5. decoupling from pandas, handling of the coupling in a separate, isolated layer
+6. possibly separate layer: ability to infer frequencies from abstract representation objects as in datatypes
+7. downwards compatibility as much as possible
+8. support for multi-index forecasting horizons (new feature request)
+9. support for `upto` as discussed in [sktime/PR#8531](https://github.com/sktime/sktime/pull/8531) (new feature request)
+
+## Ideas
+
+#### Idea 1: Utilize an already existing sequence type sktime base object that can be extended to implement the ForecastingHorizon
+- according to Franz, no such base object currently exists in sktime
+- Check if such a behaviour can be abstracted out from an existing class. If there exists a bunch of such classes then abstracting out the base sequence type behaviour would make a lot of sense.
+- `ForescastingHorizon` and `Lag` seem to be two such classes that would benefit from this abstracting out idea. Update: Though there is some similarity between lags, freq from Lag class and values,freq from the ForecastingHorizon class, they are fundamentally different. Index v/s Series.
+
+#### Idea 2: Implement a new sktime base object for handling sequence type
+
+**Questions**
+- Would `sktime` benefit in future from having a sequence type base object that can later be extended to implement other functionalities? such as `ForecastingHorizon` from our current requirement. If yes, then we design a base sequence type and then design a `ForecastingHorizon` class that inherits from the sktime base sequence type.
+- Similar point raised in [sktime/Issue#9360](https://github.com/sktime/sktime/issues/9360)
+
+#### Idea 3: Implement a new sktime base object for `ForecastingHorizon`
+- Same idea as above but instead of implmenting two class: `base_sequence_type` -> `ForecastingHorizonV2`, here we only implement one class `ForecastingHorizonV2`.
+
+
+
+## Discussion and comparison of alternative solutions
+
+<!--
+Independent internal representation of ForecastingHorizon
+- Can be acheived. A new base class `ForecastingHorizonValues` handles the functionality currently outsourced to pandas
+- `ForecastingHorizon` relatively remains same, with same functions and signatures. Minor changes.
+-->
+
+A lot of the below points are interlinked and might have some repetition, but considering them under different topics is important to know their impact on different aspects of the class.
+
+1. Interface Compatibility & Backward Compatibility
+
+    - Q1.1. Whether the new class should be a drop-in replacement that maintains 100% API compatibility with current implementation, because end users already use it and expect it to behave in a certain way? And changing it might need following deprecation patterns and introduce complexities. Or a refactor of the interface itself can also be considered? 
+    - Consideration1: Assuming some (many?) users would be using the exposed methods of `ForecastingHorizon` in their workflows and preserving them from breaking by having the same methods still exist after the rework, is of importance. 
+    - Consideration2: Changing the interface would require maintaining both classes for a while and a complicated deprecation period.
+    - Conflict: 
+        - Keeping same interface means `ForecastingHorizon` accepts the pandas objects as inputs. Which puts the responsibility to manage the `freq` mnemonics changes by `pandas` on `sktime`. Same problem as before.
+        - If we want to ensure absolutely no breakage with regards to `freq` mnemonics change, the onus of converting to a `ForecastingHorizon` compatible input type needs to be transfered to the end-user. `sktime` can obviously help by provide a utility for conversion. But if we do two things will happen. 
+            1. current working workflows of end-users will break. We can use deprecation and handle it gracefully.
+            2. yt will add one extra step before/after using the sktime forecasters -> to convert the forecasting horizon from pandas to fh_compatible input types. Seems tedious, need inputs and thoughts.
+    - Answer1.1 
+        - drop-in replacement
+        - refactor to localize all pandas related code to a conversion layer
+        - internal representation based on numpy arrays
+        - all currently supported input types should still be supported
+
+    
+
+2. Internal Data Representation
+
+    - Q2.1 Should the class still support all input types (int, list, np.ndarray, pd.Index, timedelta, date offsets)?
+    - Consideration: Same concern as above. If we support the pandas objects as input types, there would always be a chance of breakages whenever pandas makes changes as it currently happens. (When our convertor tries to convert an unseen freq type to map it to the internal representation of the custom `fh`)
+    - Answer2.1
+        - all currently supported input types should still be supported
+        - conversion should happen externally and not internal to the forecasting horizon class
+
+    - Q2.2: Instead of wrapping pd.Index, what should be the primary internal representation?
+    - Option A: numpy arrays for numeric values + custom metadata objects (least coupling with pandas)
+    - Option B: WILD IDEA!! what if instead of de-coupling we embrace the pandas fully and don't write converters but use pandas objects directly? Need investigation on what changes would that wrrant.
+    - Answer2.2
+        - Option A chosen
+
+    
+3. Pandas Interoperability (between different parts of sktime)
+
+    - Q3.1 sktime forecasters return pandas Series/DataFrames with pandas Index objects? Does that mean the new class still needs to provide `to_pandas()` and `to_numpy()` methods for integration?
+    - Accept pandas Index objects as inputs but convert them immediately to internal representation? This would result in same concerns.
+
+4. Type Handling & Frequency Management
+
+    - Q4.1 For relative vs. absolute distinction, what are the tradeoffs between keeping the current type-based approach (inferring from value types) v/s using explicit metadata/flags instead?
+    - Answer4.1
+        - infer from the type
+        - avoid enforcing strict requirement on inputs from user, if it can be inferred.
+    - Q4.2 For frequency management (the complex freq property with setter) since a lot of breakages happen here, is there a way to make it optional instead of required? Will it break anything?
+
+5. MultiIndex support
+    - This is a new feature request. Can be done but the approach will depend on answers to other questions, i.e. how much away or close the picked end-state is to pandas.
+
+6. Performance & Caching
+
+I'm a bit rusty on my threading/caching/memory-leakages concepts and have used AI coding assistant's help in deliberating this part. Would appreciate inputs here. 
+Please feel free to validate/invalidate below points.
+
+- Hashability concerns: 
+    - aren't pandas Index objects hashable? 
+    - current code uses _HashIndex wrapper, this is also source of coupling with pandas. 
+- Cache and thread safety concerns: 
+    - if many instances are created - is this implementation memory safe? 
+    - does lru_cache exhibit thread-safety?
+
+
+
+7. Maintenance load
+
+it seems edge-cases (and corresponding workarounds) will always be needed as long as there exists a code internal to `ForecastingHorizon` which converts to or from pandas objects. Unless that piece is specifically moved out and exposed to end-user and forcing them to make it part of their forecasting pipeline. Even after doing so, it will still break, but the fault localisation for the end-user might be easier and some heavy users might choose to write their own wrappers on top of `sktime` provided convertor utility. Giving end-users a way to fix their broken pipelines and also maybe sharing the blame for breakages with pandas. 
+
+## Description of proposed solution
+
+`ForecastingHorizon` to be split into three classes:
+1. `ForecastingHorizonV2` - the new class with the same interface as `ForecastingHorizon` but with an internal representation decoupled from pandas. It will be a drop-in replacement for `ForecastingHorizon` and will be the main class going forward.
+2. `FHValues` - a new base class that handles the functionality currently outsourced to pandas. It will be used internally by `ForecastingHorizonV2` to manage the values and frequencies.
+3. `PandasFHConverter` - a separate utility class that handles the conversion between pandas objects and the internal representation used by `ForecastingHorizonV2`. This class will be responsible for managing the coupling with pandas and will be the only part of the code that interacts directly with pandas objects.
+
+Idea proposed by @fkiraly: Uniform int64 Representation
+
+All four value types (`FHValueType`) are stored as **int64** numpy arrays. 
+
+The `FHValueType` enum + `freq` + `timezone` metadata provide semantic context for reconstruction.
+
+| Value Type | Internal int64 meaning | Reconstruction to pandas |
+|------------|----------------------|--------------------------|
+| `INT` | Integer steps (as-is) | `pd.Index(values, dtype=int)` |
+| `PERIOD` | Period ordinals | need to be ironed out |
+| `DATETIME` | Nanoseconds representation | `pd.DatetimeIndex(values.view('datetime64[ns]'), timezone=timezone)` |
+| `TIMEDELTA` | Nanoseconds duration | `pd.TimedeltaIndex(values.view('timedelta64[ns]'))` |
+
+Benefits: uniform validation, contiguity checking, hashing, and arithmetic — all just integer operations.
+
+
+## Detailed description of design and implementation of proposed solution 
+
+### `ForecastingHorizonV2`
+- This will be the main class that users interact with. 
+- It will have the same interface as the current `ForecastingHorizon` to ensure backward compatibility, but internally it will use `FHValues` to manage the forecasting horizon values and frequencies.
+
+#### Parameters
+
+#### Attributes
+- `_fhvalues: FHValues`
+- `_is_relative: bool`
+
+
+#### Properties
+- `is_relative -> bool`
+- `freq -> str | None` (getter returns `_fhvalues.freq`; setter creates new FHValues with updated freq via `_fhvalues._new(freq=...)`)
+
+
+#### Methods
+**Constructor**:
+
+`__init__`: will accept the same parameters as the current `ForecastingHorizon` but will convert them to the internal representation using `PandasFHConverter` if they are pandas objects. Funcitonality:
+1. Convert input: `self._fhvalues = PandasFHConverter.to_internal(values, freq)`
+2. If freq provided and not already set: `self._fhvalues = self._fhvalues._new(freq=PandasFHConverter.extract_freq(freq))`
+3. Infer/validate `is_relative`:
+    - `None` → infer from value_type (TIMEDELTA→True, PERIOD/DATETIME→False, INT→True default)
+    - `bool` → validate compatibility with value_type
+
+- Need for copy constructor: 
+    - Consideration1: 
+        - the conversion from pandas types to internal representation is done as first step in __init__, and the resulting FHValues instance is stored as an attribute. 
+        - Internal methods such as `to_relative` and `to_absolute` will generate new and valid FHValues instances, so when these new and valid `FHValues` instances will be used to create new `ForecastingHorizonV2` instances, going through the conversion step again will be redundant.
+    - Consideration2: 
+
+**Core conversion methods:**
+
+- `to_relative(cutoff=None) -> ForecastingHorizonV2`
+  - If already relative, return `self._new()`
+  - Convert cutoff via `PandasFHConverter.cutoff_to_internal(cutoff)`
+  - **PERIOD**: `relative_vals = self._fhvalues.values - cutoff_int64` → new FHValues(type=INT)
+  - **DATETIME**: `relative_vals = self._fhvalues.values - cutoff_int64` → new FHValues(type=TIMEDELTA)
+  - **INT (absolute)**: `relative_vals = self._fhvalues.values - cutoff_int64` → new FHValues(type=INT)
+  - Wrap in new ForecastingHorizonV2 with `is_relative=True`
+
+- `to_absolute(cutoff) -> ForecastingHorizonV2`
+  - If already absolute, return `self._new()`
+  - Convert cutoff via `PandasFHConverter.cutoff_to_internal(cutoff)`
+  - Freq inference: if `self.freq` is None, infer from cutoff (e.g., `PeriodIndex.freq`). Raise if no freq available and conversion requires it.
+  - **INT (relative) + cutoff is PERIOD**: `absolute_vals = cutoff_int64 + values` → FHValues(type=PERIOD, freq=cutoff_freq)
+  - **INT (relative) + cutoff is DATETIME**: convert int steps to nanosecond offsets via freq (use `PandasFHConverter.steps_to_nanos(values, freq)`), then `absolute_vals = cutoff_int64 + nanos` → FHValues(type=DATETIME, timezoe=cutoff_tz)
+  - **INT (relative) + cutoff is INT**: `absolute_vals = cutoff_int64 + values` → FHValues(type=INT)
+  - **TIMEDELTA (relative) + cutoff is DATETIME**: direct nanosecond addition `absolute_vals = cutoff_int64 + values` → FHValues(type=DATETIME, timezone=cutoff_tz)
+  - Wrap in new ForecastingHorizonV2 with `is_relative=False`
+
+- `to_pandas() -> pd.Index` — delegates to `PandasFHConverter.to_pandas_index(self._fhvalues)`
+- `to_numpy(**kwargs) -> np.ndarray` — returns `self._fhvalues.values.copy()`
+- `to_absolute_index(cutoff=None) -> pd.Index` 
+- `to_absolute_int(start, cutoff=None) -> ForecastingHorizonV2`: convert to zero-based int index from start
+
+**In-sample / out-of-sample methods:**
+
+- `_is_in_sample(cutoff=None) -> np.ndarray`: boolean array where relative values <= 0
+- `_is_out_of_sample(cutoff=None) -> np.ndarray`: boolean array where relative values > 0
+- `to_in_sample(cutoff=None) -> ForecastingHorizonV2`: filter using `_is_in_sample` mask
+- `to_out_of_sample(cutoff=None) -> ForecastingHorizonV2`: filter using `_is_out_of_sample` mask
+- `is_all_in_sample(cutoff=None) -> bool`: single boolean describing if all values are in-sample
+- `is_all_out_of_sample(cutoff=None) -> bool`: single boolean describing if all values are out-of-sample
+
+**Indexer:**
+- `to_indexer(cutoff=None, from_cutoff=True) -> pd.Index`
+  - If `from_cutoff=True`: get relative values, subtract 1 to make zero-based
+  - If `from_cutoff=False`: get absolute int values relative to start
+  - Wrap result via `PandasFHConverter.to_pandas_index(...)` (returns pd.Index for backward compat)
+
+**Contiguity:**
+- `_is_contiguous() -> bool` — delegates to `self._fhvalues.is_contiguous()`
+
+**Prediction index:**
+- `get_expected_pred_idx(y=None, cutoff=None, sort_by_time=False) -> pd.Index`
+  - Constructs the expected output index matching current behavior
+  - mostly delegates to `PandasFHConverter.build_pred_index(...)` for the actual construction logic, since it is heavily pandas-dependent
+
+
+
+### `FHValues`
+
+#### Parameters
+- `values`, 
+- `value_type`, 
+- `freq`, 
+- `timezone`
+
+
+Corresponding validations in `__init__`:
+- `values` must be 1D np.ndarray with int64 dtype
+- `value_type` must be FHValueType
+- `freq` required when value_type is PERIOD
+- Sort and deduplicate `values`, raise an error on empty after dedup (current draft PR, doesn't enforce this, but it should)
+
+
+#### Attributes
+
+Private attributes (currenlty the draft PR might have them as public, but they should be private with read-only properties):
+- `_values`: np.ndarray — always dtype int64, sorted and unique
+- `_value_type`: FHValueType
+- `_freq`: str | None — frequency string, required for PERIOD.
+- `_timezone`: str | None — timezone string for DATETIME only.
+- `_hash`: int | None - cached hash
+
+#### Properties
+Read-only properties, with only getter methods:
+- `values`, 
+- `value_type`, 
+- `freq`, 
+- `timezone`
+
+
+#### Methods
+
+- constructor `__init__(values, value_type, freq=None, timezone=None)`
+- `__len__`, 
+- `__getitem__` (returns new FHValues for slices, scalar for int index)
+- `__eq__`, 
+- `__hash__` (hash via `values.tobytes()` + metadata tuple)
+- `__repr__`
+- `is_relative_type() -> bool`, 
+- `is_absolute_type() -> bool`
+- `max() -> int`, 
+- `min() -> int`
+- `is_contiguous() -> bool` — for int64, just check `len == max - min + 1` (for INT/PERIOD); for TIMEDELTA/DATETIME, check uniform spacing via `np.diff`
+- `copy() -> FHValues`
+- `_new(values, value_type, freq, timezone=) -> FHValues` — copy constructor creating new instance reusing current metadata for unspecified args. To avoid redundant checks when creating a new instance with already validated values/metadata. Some checks might still be needed, e.g., freq must be provided for PERIOD, but checks like sorting/deduping values can be skipped since they are already guaranteed by the current instance.
+
+
+
+
+### `PandasFHConverter`
+conversion layer
+
+#### Methods
+
+**Input conversion: `to_internal(values, freq=None) -> FHValues`**
+
+Handles all accepted input types and converts to FHValues with int64 arrays:
+
+| Input type | Conversion |
+|-----------|-----------|
+| `int` | `np.array([values], dtype=np.int64)`, type=INT |
+| `list[int]` | `np.array(values, dtype=np.int64)`, type=INT |
+| `range` | `np.array(values, dtype=np.int64)`, type=INT |
+| `np.ndarray` (int) | cast to int64, type=INT |
+| `np.ndarray` (timedelta64) | `.view(np.int64)`, type=TIMEDELTA |
+| `list[pd.Timedelta]` | convert via `pd.TimedeltaIndex(values).asi8`, type=TIMEDELTA |
+| `pd.Timedelta` | single element, `.value` (int64 nanos), type=TIMEDELTA |
+| `pd.RangeIndex` | `.to_numpy().astype(np.int64)`, type=INT |
+| `pd.TimedeltaIndex` | `.asi8` (int64 nanos), type=TIMEDELTA |
+| `pd.PeriodIndex` | `.asi8` (ordinals), type=PERIOD, freq from index |
+| `pd.DatetimeIndex` | `.asi8` (int64 nanos), type=DATETIME, timezone from index |
+| `pd.Index` (int dtype) | `.to_numpy().astype(np.int64)`, type=INT |
+| `pd.offsets.BaseOffset` | convert to timedelta then int64, type=TIMEDELTA |
+
+
+
+**Output conversion: `to_pandas_index(fhv: FHValues) -> pd.Index`**
+
+| FHValueType | Reconstruction |
+|------------|---------------|
+| INT | `pd.Index(fhv.values, dtype=int)` |
+| PERIOD | `pd.PeriodIndex(fhv.values.view('int64'), freq=fhv.freq)`, `pd.PeriodIndex.from_ordinals(fhv.values, freq=fhv.freq)` |
+| DATETIME | `pd.DatetimeIndex(fhv.values.view('datetime64[ns]'))` then `.timezone_localize(timezone)` if timezone |
+| TIMEDELTA | `pd.TimedeltaIndex(fhv.values.view('timedelta64[ns]'))` |
+
+
+
+**Cutoff conversion:**
+- `cutoff_to_internal(cutoff, freq=None) -> tuple[np.int64, FHValueType, str|None]`
+  - Converts pd.Index/pd.Timestamp/pd.Period/int cutoff to (int64_value, value_type, freq)
+  - Returns a lightweight tuple (not a full FHValues) since cutoff is a single value
+- `cutoff_to_pandas(value, value_type, freq=None, timezone=None) -> pd.Index`
+  - Reconstructs a single-element pd.Index from internal cutoff representation
+
+
+
+**Frequency helpers:**
+- `extract_freq(obj) -> str | None` — extract freq string from pd.Index, pd.offsets, forecaster, or string
+- `normalize_freq(freq_str) -> str` — normalize freq strings (e.g., "ME" → "M")
+- `freq_to_pandas_offset(freq_str) -> pd.offsets.BaseOffset` — only used when outputting to pandas
+- `steps_to_nanos(steps: np.ndarray, freq: str) -> np.ndarray` — convert integer steps to int64 nanosecond offsets using freq (e.g., 3 steps at "D" freq → 3 * 86400 * 1e9 nanos). Uses `pd.tseries.frequencies.to_offset(freq)` internally.
+- `nanos_to_steps(nanos: np.ndarray, freq: str) -> np.ndarray` — nanosecond durations to integer step counts
+
+
+
+**Prediction index helper (for `get_expected_pred_idx`):**
+- `build_pred_index(fh_pandas_idx, y, cutoff, sort_by_time) -> pd.Index` — prediction index construction logic including MultiIndex/DataFrame handling. Moved here because it's heavily pandas-dependent. ForecastingHorizonV2.get_expected_pred_idx() delegates to this.
+
+

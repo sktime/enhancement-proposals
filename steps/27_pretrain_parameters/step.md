@@ -5,10 +5,65 @@ Contributors: @fkiraly @SimonBlanke @felipeangelimvieira
 This STEP centralizes the discussion of edge cases for global forecasters
 and pretraining-compatible models with respect to pretrained parameters.
 
-
 ## Related issues
 * https://github.com/sktime/sktime/issues/10151
 * https://github.com/sktime/skbase/issues/554
+
+## Concepts
+
+### Pretrained attributes
+These refer to attributes of the class changed or created during a `.pretrain` call.
+
+### Pretrained parameters
+Refer to the mode parameters (e.g. neural network weights, a XGBoost fitted model for ar eduction forecaster) that are global and not task-specific. 
+
+### Fit attributes
+Parameters changed or created during `.fit` call
+
+### Fit parameters
+Task-specific model parameters. For global models, there might be no fit parameters. For classical statistical models such as ARIMA, which have task-specific implementations, all ARIMA parameters are fit parameters.
+
+### Fine-tunable models
+Models that can have incremental pretraining rounds, without needing to be pretrained from scratch. XGBoost with reduction is not fine-tunable.
+
+## Use-cases
+
+### Pretrained, fit
+
+State change: `pretrained` -> `fitted`
+Classical usage of global models. Pretraining step learns pretrained parameters and set pretrained attributes, which are later used in `fit` for tasks that might be different from the ones seen in pretraining step.
+
+### Pretrained, clone
+
+State change: `pretrained` -> `pretrained`
+
+Common in composition with global models. Pretrained models are cloned for usage in pipelines, ensembles and also cross-validation.
+
+### pretrained, pretrain again (finetuning)
+
+Stage change: `pretrained` -> `pretrained`
+
+This use-case triggers different behaviours depending on the model.
+
+* Finetuning: for models that support finetuning, this would use new data to change pretrained parameters and therefore attributes. One potential challenge here is that we use multiton pattern and we should be careful to allow finetuning **without side effects**, i.e., when finetuning this instance, other instances that had the same initial pretrained parameters should not be affected. Therefore, the *memory location* of pretrained attributes should change after this call.
+* No support for finetuning: for reduction forecasters, for example, this would lead to undoing the first pretrain step and doing it again from scratch. If the two pretrain steps are called with the same data (and seeds are properly set), both calls would result in the same pretrained parameters.
+
+### pretrained, `set_params`
+
+This is a more delicate use-case. This pattern can have two objectives:
+* Changing model hyperparameters to prepare to a finetuning pretrain call. In this case, some changes of hyperparameters might be incompatible with current pretrained state.
+* Changing he model with new hyperparameters to obtain an entirely new estimator, without the intention of finetuning.
+
+This use-case is intrinsically related to the behaviour of `reset`, which is called during a `set_params` call. Should reset also reset pretrained attributes? This answer also defines what `set_params` does for models that can be finetuned.
+
+In terms of user experience, the best option could be `set_params` only resetting pretrained attributes if explicitely told to do so. This would make current models and behaviour similar to what is expected in hyperparameter tuning pipelines and compositions.
+
+One edge case is a ML model (e.g XGBoost) in a hyperparameter tuning pipeline. The user might try to tune a pretrained Reduction model in a grid search, for example. However, it is not possible to, for example, change the `max_depth` of the tree and keep the pretrained state. In this case, we should decide if the model fails or it resets to `new` state.
+
+The important aspect here is notice that calling `set_params` in a model that is `fitted` can lead to different behaviours for global and local models. For example, calling `set_params` to a fitted ARIMA make it go back to `new` state. Calling `set_params` to a global Neural Network, to change the learning rate, should make it go to `new` or to `pretrained` state? 
+
+
+### Initialization, fit
 
 
 ## Problem

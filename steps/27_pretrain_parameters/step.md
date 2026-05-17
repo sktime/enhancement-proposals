@@ -176,29 +176,30 @@ shared memory issues.
 |`new`|`fit`|Yes|Yes|-|`fitted`|Load weights, save to pretrained attributes and bind to task|
 |`new`|`fit`|Yes|No|-|`fitted`|Call pretrain and then fit|
 |`pretrained` or `fitted`|`reset`|Yes|-|-|`pretrained`|Reset non-pretrained attributes, keep pretrained parameters|
-|`pretrained` or `fitted`|`reset(reset_pretrained=False)`|Yes|-|-|`pretrained`|Reset non-pretrained attributes, keep pretrained parameters|
-|`pretrained` or `fitted`|`reset(reset_pretrained=True)`|Yes|-|-|`new`|Reset pretrained attributes, reset all parameters|
-|`pretrained`|`set_params` on finetunable hyperparameters|Yes|-|Yes|`pretrained`|Call reset with `reset_pretrained=False` and change finetunable hyperparameters|
-|`pretrained`|`set_params`|Yes|-|No|`new`|Change hyperparameters, reset all attributes and initialize|
-|`pretrained`|`pretrain` again|Yes|-|No|`pretrain`|Call reset(reset_pretrained=True) and then pretrain again, potentially going back to the same initial pretrained parameters|
+|`pretrained` or `fitted`|`reset(keep_pretrained=True)`|Yes|-|-|`pretrained`|Reset non-pretrained attributes, keep pretrained parameters|
+|`new` or `fitted`|`reset(keep_pretrained=True)`|No|-|-|`pretrained`|Raise an error, not a global model|
+|`pretrained` or `fitted`|`reset(keep_pretrained=False)`|Yes|-|-|`new`|Reset pretrained attributes, reset all parameters|
+|`pretrained` or `fitted`|`set_params(_keep_pretrained=True)`| -|-|Yes|`pretrained`|Call reset with `keep_pretrained=True` and set hyperparameters|
+|`pretrained` or `fitted`|`set_params(_keep_pretrained=False)`|Yes|-|No|`new`|Change hyperparameters, reset all attributes and initialize|
+|`pretrained`|`pretrain` again|Yes|-|No|`pretrain`|Call reset(keep_pretrained=False) and then pretrain again, potentially going back to the same initial pretrained parameters|
 |`pretrained`|`pretrain` again|Yes|-|Yes|`pretrain`|Copy and incrementally change pretrained parameters, go to `pretrained` state|
 
 ### On API level
 
 1. Add a new argument to `reset`, `clone`, and `set_params` to control whether
-   pretrained parameters should be reset, with default value `False`, i.e.,
+   pretrained parameters should be kept, with default value `True`, i.e.,
    pretrained parameters are not reset by default. Suggested name:
-   `reset_pretrained=False`.
+   `keep_pretrained=True`.
 2. Estimators should have a tag `pretrained_attributes` that lists the attributes that
    belong to the model's pretraining phase and are not task-specific.
 3. `reset` and `clone` should both inspect that tag, reset the
-   listed attributes if `reset_pretrained=True`, and keep them cloned/deep-copied if
-   `reset_pretrained=False`. Every other attribute should be reset as usual.
-4. In a `set_params` call, `reset()` is called and then `__init__` and `__post_init__` are called. As we have seen, there are use-cases where pretrained state is preserved after a `reset` call. When called with `set_params`,if the pretrained state is preserved and pretrained attributes are present, `__post_init__` should check whether the new hyperparameters are compatible with the existing pretrained parameters and raise an error if they are not. This function should be called before setting the new parameters. See the following skbase changes for more details on how to implement this.
+   listed attributes if `keep_pretrained=False`, and keep them cloned/deep-copied if
+   `keep_pretrained=True`. Every other attribute should be reset as usual.
+4. In a `set_params` call, `reset()` is called and then `__init__` and `__post_init__` are called. As we have seen, there are use-cases where pretrained state is preserved after a `reset` call. When called with `set_params`, if the pretrained state is preserved and pretrained attributes are present, `__post_init__` should check whether the new hyperparameters are compatible with the existing pretrained parameters and raise an error if they are not. This function should be called before setting the new parameters. See the following skbase changes for more details on how to implement this.
 
 ## Alternative solutions
 
-### Use only the function argument `_reset` or `reset_pretrained`
+### Use only the function argument `_reset` or `keep_pretrained`
 
 This would require fewer API changes, but it would not solve the problems in
 `reset` and would make it hard to control the compatibility of global models in
@@ -225,10 +226,10 @@ An alternative solution would be to have a private class attribute
     2.5. model instantiation + pretrain + fit + clone
     2.6. model instantiation + pretrain + fit + set_params
 3. For the same circumstances above, check whether pretrained parameters are
-   reset when `force_reset=True` is passed as an argument to `reset`,
+   reset when `keep_pretrained=False` is passed as an argument to `reset`,
    `clone`, and `set_params`.
 
 4. Check the behavior of test 2 when the model is used inside a pipeline or composition with a non-global model.
-5. The reserved keyword argument `force_reset` should not be a `__init__` argument.
+5. The reserved keyword argument `keep_pretrained` should not be a `__init__` argument.
 6. Check whether cloning and calling pretrain on the second instance does not change the pretrained parameters of the first instance.
 7. Check whether setting hyperparameters that are incompatible with existing pretrained parameters raises an error.

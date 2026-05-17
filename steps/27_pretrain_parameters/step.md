@@ -179,7 +179,7 @@ shared memory issues.
 |`pretrained` or `fitted`|`reset(reset_pretrained=False)`|Yes|-|-|`pretrained`|Reset non-pretrained attributes, keep pretrained parameters|
 |`pretrained` or `fitted`|`reset(reset_pretrained=True)`|Yes|-|-|`new`|Reset pretrained attributes, reset all parameters|
 |`pretrained`|`set_params` on finetunable hyperparameters|Yes|-|Yes|`pretrained`|Call reset with `reset_pretrained=False` and change finetunable hyperparameters|
-|`pretrained`|`set_params` on non-finetunable hyperparameters|Yes|-|No|`new`|Change non-finetunable hyperparameters, reset all attributes and initialize|
+|`pretrained`|`set_params`|Yes|-|No|`new`|Change hyperparameters, reset all attributes and initialize|
 |`pretrained`|`pretrain` again|Yes|-|No|`pretrain`|Call reset(reset_pretrained=True) and then pretrain again, potentially going back to the same initial pretrained parameters|
 |`pretrained`|`pretrain` again|Yes|-|Yes|`pretrain`|Copy and incrementally change pretrained parameters, go to `pretrained` state|
 

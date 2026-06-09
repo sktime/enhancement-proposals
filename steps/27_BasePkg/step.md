@@ -297,15 +297,15 @@ def _build_model(self, metadata: dict, **kwargs):
    Meaning - the directory shuould be like this:
    ```
    ckpt_dir/
-   ├── checkpoints
+   ├── checkpoints/
          └── best-epoch=X-step=Y.ckpt
-   └── configs
+   └── configs/
          └── model_cfg.pkl
          └── datamodule_cfg.pkl
          └── trainer_cfg.pkl
-   └── metadata
+   └── metadata/
          └── datamodule_metadata.pkl
-   └── scalers
+   └── scalers/
          └── scalers.pkl
          └── target_normalizer.pkl
    ```
@@ -399,14 +399,15 @@ def save(ckpt_path, ckpt_kwargs):
     ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
     
     Complete folder structure is like this:
+    
     ckpt_path/
-   ├── checkpoints
+   ├── checkpoints/
          └── best-epoch=X-step=Y.ckpt
-   └── configs
+   └── configs/
          └── model_cfg.pkl
          └── datamodule_cfg.pkl
          └── trainer_cfg.pkl
-   └── metadata
+   └── metadata/
          └── datamodule_metadata.pkl
          
     Parameters
@@ -522,16 +523,17 @@ def save(ckpt_path, ckpt_kwargs, save_scalers):
     ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
     
     Complete folder structure is like this:
+    
     ckpt_path/
-   ├── checkpoints
+   ├── checkpoints/
          └── best-epoch=X-step=Y.ckpt
-   └── configs
+   └── configs/
          └── model_cfg.pkl
          └── datamodule_cfg.pkl
          └── trainer_cfg.pkl
-   └── metadata
+   └── metadata/
          └── datamodule_metadata.pkl
-   └── scalers
+   └── scalers/
          └── scalers.pkl
          └── target_normalizer.pkl
          

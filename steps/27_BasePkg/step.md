@@ -304,10 +304,10 @@ def _build_model(self, metadata: dict, **kwargs):
          └── datamodule_cfg.pkl
          └── trainer_cfg.pkl
    └── metadata
-         └── metadata.pkl
+         └── datamodule_metadata.pkl
    └── scalers
          └── scalers.pkl
-         └── target_normalizer
+         └── target_normalizer.pkl
    ```
    But currently, there are no such sub-folders (see `Example 1: Saving` section for more info).
 
@@ -395,8 +395,20 @@ def load(ckpt_path):
 def save(ckpt_path, ckpt_kwargs):
     """load the model and its artifact.
     
-    The method would use ``ModelCheckpoint`` for saving model ckpts. The cfgs would be saved as pkl files in 
-    ``ckpt_path/configs`` folder.
+    The method would use ``ModelCheckpoint`` for saving model ckpts inside ``ckpt_path/model_checkpoints`` folder. The cfgs would be saved as ``pkl`` files in 
+    ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
+    
+    Complete folder structure is like this:
+    ckpt_path/
+   ├── checkpoints
+         └── best-epoch=X-step=Y.ckpt
+   └── configs
+         └── model_cfg.pkl
+         └── datamodule_cfg.pkl
+         └── trainer_cfg.pkl
+   └── metadata
+         └── datamodule_metadata.pkl
+         
     Parameters
     ----------
     ckpt_path: str, Path
@@ -506,8 +518,23 @@ def save(ckpt_path, ckpt_kwargs, save_scalers):
     
     It would use ``.get_scaler_state()`` of any datamodule to get the scalers and save them as pkl files 
      in the ``ckpt_path/scalers`` folder. The method would use 
-    ``ModelCheckpoint`` for saving model ckpts. The cfgs would be saved as pkl files in 
-    ``ckpt_path/configs`` folder.
+    ``ModelCheckpoint`` for saving model ckpts in ``ckpt_path/model_checkpoints`` folder. The cfgs would be saved as pkl files in 
+    ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
+    
+    Complete folder structure is like this:
+    ckpt_path/
+   ├── checkpoints
+         └── best-epoch=X-step=Y.ckpt
+   └── configs
+         └── model_cfg.pkl
+         └── datamodule_cfg.pkl
+         └── trainer_cfg.pkl
+   └── metadata
+         └── datamodule_metadata.pkl
+   └── scalers
+         └── scalers.pkl
+         └── target_normalizer.pkl
+         
     Parameters
     ----------
     ckpt_path: str, Path

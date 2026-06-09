@@ -1,5 +1,8 @@
 # How to handle `load` and `save` in `BasePkg`
 
+In `pytorch-forecasting` v2, the model checkpoints are saved along with data module config, model configs and other metadata. But there is no way to save and load the scalers. This EP proposes a way to do so while still providing the flexibility to the user to decide if they want to save the scalers or not.
+But first let's take a look at the current state of load and saving mechanism in v2. It just saves the metadata, cfgs and model checkpoints. 
+
 ## Current state
 
 Currently, in `pytorch-forecasting` v2, we use `fit` to save the checkpoints and the model is loaded when we initialise the new class.
@@ -63,7 +66,17 @@ Now, assuming we are using the above definitions for the next two examples.
 
 If we pass `save_ckpt` as `True` in `model_pkg.fit()`, the methods automatically saves the model checkpoints after fitting. `ckpt_dir` is optional and defaults to `"checkpoints"`. `ckpt_kwargs` are also optional arguments passed to `ModelCheckpoint`.
 
-This saves - model checkpoints and all the three cfgs (`model_cfg`, `datamodule_cfg` and `trainer_cfg`)
+This saves - model checkpoints and all the three cfgs (`model_cfg`, `datamodule_cfg` and `trainer_cfg`) and the metadata from the data module
+Currently, these checkpoints and cfgs are saved in this format
+```
+ckpt_dir/
+├── best-epoch=X-step=Y.ckpt
+└── model_cfg.pkl
+└── datamodule_cfg.pkl
+└── trainer_cfg.pkl (there is a bug in _save_artifacts where it doesnt save this cfg - but expected behaviour was it should've saved it)
+└── metadata.pkl
+
+```
 
 ```python
 ckpt_dir = "checkpoints"
@@ -91,7 +104,7 @@ predictions = pkg_loaded.predict(test_data["predict"], mode="prediction")
 
 ##### Saving
 
-The saving logic completely sits inside the `.fit()` method of the `Base_pkg`. When we pass `sace_ckpt=True` to `fit()`,
+The saving logic completely sits inside the `.fit()` method of the `Base_pkg`. When we pass `save_ckpt=True` to `fit()`,
 the method saved the model checkpoints using `ModelCheckpoint`, while other artifacts (`model_cfg`, `datamodule_cfg` and `metadata` of `datamodule`) are saved by calling `_save_artifacts`.
 
 ```python
@@ -280,6 +293,23 @@ def _build_model(self, metadata: dict, **kwargs):
 
 - There is no clear `load` and `save` methods - this makes adding ways to save new artifacts (like `scalers`) hard as we dont have a specific place where we can keep this logic.
 - Everything is intermingled - the same method `_build_model` builds a mpdel from a config and from the checkpoints. There is no clear distinction between the responsibilities of the methods
+- Everything is saved in the same directory and there is no clear distinction between different artifacts. Optimally, in the parent directory (lets say `ckpt_dir`) should have separate sub-directories for model-checkpoints, metadata, configs and so on.
+   Meaning - the directory shuould be like this:
+   ```
+   ckpt_dir/
+   ├── checkpoints
+         └── best-epoch=X-step=Y.ckpt
+   └── configs
+         └── model_cfg.pkl
+         └── datamodule_cfg.pkl
+         └── trainer_cfg.pkl
+   └── metadata
+         └── metadata.pkl
+   └── scalers
+         └── scalers.pkl
+         └── target_normalizer
+   ```
+   But currently, there are no such sub-folders (see `Example 1: Saving` section for more info).
 
 ## Proposed Design
 
@@ -306,6 +336,15 @@ of one same `BasePkg`. But each new "child" Base class would cater to specific n
 
 This kind of inheritance tree would allow us to handle different models and their specific requirements without any need to update `BasePkg` and the most basic feats of the package to be compatible with all the models.
 If we ever plan to add a new family of models, we could just add a new Base class as a child of `BasePkg` and start from there.
+
+Before deep diving into the design and the Pseudocode, lets first define the cases that are possible in terms of `load` and `save`:
+
+1. **The user just wants to save the model checkpoints:**
+   This is possible even with the current implementation, but by default the configs and metadata are also saved with this - I think this should not change in the new design as well. The user can always override the cfgs and saving these cfgs and data module metadata provides a safeguard of not loosing these old configs if needed and saving them are not memory intensive (all configs may take few kBs of space only).
+   But the issue is there are no clear sub folders (see `Issues with current design` for more info).
+2. **The user wants to save the scalers along with model checkpoints**
+   This can be handled by Intermediate Base Class (`BaseEncDecPkg`) which would provide a way to save the scalers and we should provide a new arg `save_scalers` that decides if we need to save the scalers or not. It will stay `True` by default. 
+
 #### Pseudocode
 
 **`BasePkg` root**
@@ -462,7 +501,7 @@ def load(ckpt_path):
     # load the models and other artifacts here
     
 @staticmethod
-def save(ckpt_path, ckpt_kwargs):
+def save(ckpt_path, ckpt_kwargs, save_scalers):
     """load the model and its artifact.
     
     It would use ``.get_scaler_state()`` of any datamodule to get the scalers and save them as pkl files 
@@ -475,6 +514,8 @@ def save(ckpt_path, ckpt_kwargs):
         Path where the checkpoints (like model ckpts, cfgs, scalers etc) are to be stored.
     ckpt_kwargs : dict, optional
         Keyword arguments passed to ``ModelCheckpoint``.
+    save_scalers: bool, default=True
+        Whether to save the scalers along with the model checkpoints or not.
     
     Returns
     -------
@@ -482,6 +523,8 @@ def save(ckpt_path, ckpt_kwargs):
         The path to the model checkpoint
     """
     # save the model and other artifacts here
+    # If save_scalers is False:
+    #     donot save the scalers and only save the model checkpoints
     
 def fit(
         self,

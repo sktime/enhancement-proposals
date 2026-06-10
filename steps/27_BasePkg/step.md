@@ -312,38 +312,19 @@ def _build_model(self, metadata: dict, **kwargs):
    But currently, there are no such sub-folders (see `Example 1: Saving` section for more info).
 
 ## Proposed Design
+After discussion with Franz:
 
-We should keep the endpoints for the user same, I think - they should still be able to save the mdoel directly from `fit` and load it just by initialising the `pkg` class.
-At the same time we should provide standalone `load` and `save` methods, which are called inside `__init__` and `fit` methods. The user can now load and save the models with these methods as well if they want.
+The `BasePkg` should stay generic and would act like a coordinator, just passing out the commands it recieved from the user to the respective layer.
+Meaning, for `load` and `save`:
+- The user calls `load` either by `__init__` (by just initialising the `pkg` class) or by specifically calling `pkg.load()`. 
+  - The `pkg.load()` calls internally `datamodule.load()` and `model.load()`.
+  - If the datamodule has anything to load (like scalers, metadata etc), it will load it otherwise return `None`. Similarly, the model loads the model weights using `model._load_from_checkpoint()`.
+  - The `pkg` class just performs the check if everything is loaded correctly and if there is no error or issue.
+- The user calls `save()` either by passing `save_ckpt=True` in `fit` or by specifically calling `pkg.save`.
+  - The `pkg.save` calls internally `datamodule.save` and `model.save`.
+  - If the datamodule has scalers (or any other artifact) to save, it would save it and return the path of the saved artifact else, return `None`. The model saves the model weights using `ModelCheckpoint`.
+  - The `pkg` class just performs the reconciliation and make sure if everything is saved in correct places or not.
 
-But as not all models support the scalers, we need to have a kind of "tree" of Base classes that can cater to the different needs of different types of models. We would have multiple base classes that are children
-of one same `BasePkg`. But each new "child" Base class would cater to specific needs each type of model that class is made for.
-
-#### Tree structure of inheritance in `BasePkg`
-
-1. **Root** `BasePkg`
-   Handles the common methods for all the Base classes - have a generic load and save with options for children to override them.
-
-2. **Intermediate Base Classes**    `BaseFMPkg`, `BaseEncDecPkg`, `BaseTslibPkg` etc 
-   Base Classes for specific types of models
-
-3. **Optional Intermediate Base Class -2**
-   If one Base Class is not enough for specific type of models, we can have one more layer of inheritance here. 
-   Eg - For Encoder-decoder models, We can have different Base models for Autoregressive models, autoregressive models with covariates etc (see [Base Classes of v1](https://github.com/sktime/pytorch-forecasting/blob/main/pytorch_forecasting/models/base/_base_model.py) for more info)
-4. **Leafs** 
-   Actual Model Package children of these specific Base classes
-
-
-This kind of inheritance tree would allow us to handle different models and their specific requirements without any need to update `BasePkg` and the most basic feats of the package to be compatible with all the models.
-If we ever plan to add a new family of models, we could just add a new Base class as a child of `BasePkg` and start from there.
-
-Before deep diving into the design and the Pseudocode, lets first define the cases that are possible in terms of `load` and `save`:
-
-1. **The user just wants to save the model checkpoints:**
-   This is possible even with the current implementation, but by default the configs and metadata are also saved with this - I think this should not change in the new design as well. The user can always override the cfgs and saving these cfgs and data module metadata provides a safeguard of not loosing these old configs if needed and saving them are not memory intensive (all configs may take few kBs of space only).
-   But the issue is there are no clear sub folders (see `Issues with current design` for more info).
-2. **The user wants to save the scalers along with model checkpoints**
-   This can be handled by Intermediate Base Class (`BaseEncDecPkg`) which would provide a way to save the scalers and we should provide a new arg `save_scalers` that decides if we need to save the scalers or not. It will stay `True` by default. 
 
 #### Pseudocode
 
@@ -460,137 +441,3 @@ def fit(
         self.save(ckpt_dir, ckpt_kwargs)
         
 ```
-
-**`BaseEncDecPkg` child of `BasePkg`**
-
-Here we save the scalers using the `get_scaler_state()` of the datamodules - each D2 datamodule can implement its own `set_scaler_set()` and the `BaseEncDecPkg` would not be affected from that. We just need to maintain the contract that the method returns the scalers in a specific format - in ``dict``.
-Similarly, `set_scaler_state()` of data module would take the scalers loaded from the `BaseEncDecPkg` and would do its own validation INSIDE the data module and then save them in its own variables as per requirement.
-
-So, the `BaseEncDecPkg` would only 
-- TAKE the scalers from teh datamodules and then save them in pkl files
-- Load the scalers and GIVE it to the data module, and the datamodule would itself do the validation etc - `BaseEncDecPkg` would have nothing to do with that.
-
-The `BaseEncDecPkg` would just be saving and loading the scalers - their validation, usage etc happens inside the datamodule
-```python
-# inside BaseEncDecPkg
-
-def __init__(
-    self,
-        model_cfg: dict[str, Any] | str | Path | None = None,
-        trainer_cfg: dict[str, Any] | str | Path | None = None,
-        datamodule_cfg: dict[str, Any] | str | Path | None = None,
-        ckpt_path: str | Path | None = None,
-):
-  """``__init__()`` of ``BasePkg``
-  
-  The user dont have to call ``load`` separately to laod the model and its artifact, just passing the 
-  ``ckpt_path`` during initialization would be enough.
-  The __init__() would just call ``load`` here if we have ``ckpt_path`` and it will load the model 
-  and other artifacts.
-  """
-    self.model_cfg = model_cfg
-    self.trainer_cfg = trainer_cfg
-    self.datamodule_cfg = datamodule_cfg
-    self.ckpt_path = ckpt_path
-    
-    if ckpt_path is not None:
-        self.load(self.ckpt_path)
-        
-
-@staticmethod
-def load(ckpt_path):
-    """load the model and its artifact.
-    
-    It would use ``.set_scaler_state()`` of any datamodule to set the scalers from the pkl files present
-     in the ``ckpt_path/scalers`` folder and  ``._load_from_checkpoint()`` of ``lightning`` for model ckpts.
-    The cfgs would be loaded  using ``_load_configs()`` of the current implementation works (see above) - it would 
-    load cfgs from the ``pkl``, ``yaml`` files. If the user passes a cfg as a ``dict``, it would be given
-    higher preference than the already saved cfgs files in the checkpoints or the ``yaml`` file passed.
-    Parameters
-    ----------
-    ckpt_path: str, Path
-        Path where the checkpoints (like model ckpts, cfgs, scalers etc) are stored.
-    """
-    # load the models and other artifacts here
-    
-@staticmethod
-def save(ckpt_path, ckpt_kwargs, save_scalers):
-    """load the model and its artifact.
-    
-    It would use ``.get_scaler_state()`` of any datamodule to get the scalers and save them as pkl files 
-     in the ``ckpt_path/scalers`` folder. The method would use 
-    ``ModelCheckpoint`` for saving model ckpts in ``ckpt_path/model_checkpoints`` folder. The cfgs would be saved as pkl files in 
-    ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
-    
-    Complete folder structure is like this:
-    
-    ckpt_path/
-   ├── checkpoints/
-         └── best-epoch=X-step=Y.ckpt
-   └── configs/
-         └── model_cfg.pkl
-         └── datamodule_cfg.pkl
-         └── trainer_cfg.pkl
-   └── metadata/
-         └── datamodule_metadata.pkl
-   └── scalers/
-         └── scalers.pkl
-         └── target_normalizer.pkl
-         
-    Parameters
-    ----------
-    ckpt_path: str, Path
-        Path where the checkpoints (like model ckpts, cfgs, scalers etc) are to be stored.
-    ckpt_kwargs : dict, optional
-        Keyword arguments passed to ``ModelCheckpoint``.
-    save_scalers: bool, default=True
-        Whether to save the scalers along with the model checkpoints or not.
-    
-    Returns
-    -------
-    Path
-        The path to the model checkpoint
-    """
-    # save the model and other artifacts here
-    # If save_scalers is False:
-    #     donot save the scalers and only save the model checkpoints
-    
-def fit(
-        self,
-        data: TimeSeries | LightningDataModule,
-        save_ckpt: bool = True,
-        ckpt_dir: str | Path = "checkpoints",
-        ckpt_kwargs: dict[str, Any] | None = None,
-        **trainer_fit_kwargs
-):
-    """fit the model and save the checkpoints if needed.
-  
-    Parameters
-    ----------
-    data : Union[TimeSeries, LightningDataModule]
-        The data to fit on (D1 or D2 layer). This object is responsible
-        for providing both training and validation data.
-    save_ckpt : bool, default=True
-        If True, save the best model checkpoint and other artifacts like scalers,  cfgs etc.
-    ckpt_dir : Union[str, Path], default="checkpoints"
-        Directory to save artifacts.
-    ckpt_kwargs : dict, optional
-        Keyword arguments passed to ``ModelCheckpoint``.
-    **trainer_fit_kwargs :
-        Additional keyword arguments passed to `trainer.fit()`.
-
-    Returns
-    -------
-    Optional[Path]
-        The path to the BEST model checkpoint if `save_ckpt=True`, else None.
- 
-    """
-    # fit the model 
-    # after fitting the model:
-    if save_ckpt:
-        self.save(ckpt_dir, ckpt_kwargs)
-        
-```
-
-So, finally most of the code would remain the same, just some refactoring would be required and we could just add the methods to laod and save the `scalers` inside `load` and `save` and they would act as access points for the scalers.
-

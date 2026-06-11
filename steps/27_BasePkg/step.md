@@ -317,20 +317,32 @@ After discussion with Franz:
 The `BasePkg` should stay generic and would act like a coordinator, just passing out the commands it recieved from the user to the respective layer.
 
 Meaning, for `load` and `save`:
+
 - The user calls `save()` either by passing `ckpt_dir` in `fit` or by specifically calling `pkg.save`.
+
   1. The `pkg.save` calls internally `datamodule.save` and `model.save`.
+
      - Here, we would also have an arg called `exclude` (present in `fit` and `pkg.save`) which expects a `list` of strings and the user can decide what to "exclude" while saving (like excluding scalers and saving only the model weights). By default, it would be empty
        - But we would always save the `model_cfg` and `data_module_cfg` and user cant pass these to `exclude`.
+  
   2. If the datamodule has scalers (or any other artifact) to save, it would save it and return the path of the saved artifact else, return `None`. The model saves the model weights using `ModelCheckpoint`.
+
   3. After collecting the paths where all the artifacts have been saved from the D2 and M layers, it would create a `artifacts.json` that would save the aritfacts and the place they are saved
+
      - This would save us from writing a long `if-else` block and the `load` would simply read through this json and load everything. So, in case user has decided to exclude anything or D2 layer didnt have anything to save (eg, `scalers` were not initializer), `load` would not face any issues.
      - Obviously, if D2 returns `None` meaning it had nothing to `save` we would raise warnings.
+  
   4. The `pkg` class just performs the reconciliation and make sure if everything is saved in correct places or not.
+
 - The user loads by specifically calling `pkg.load()` - the only endpoint for loading. The user just has to pass the `ckpt_dir` or path to `artifacts.json`.
+
   1. The `pkg.load()` reads `artifacts.json` to see what to load and from where to `load`. It would load everything present in the `artifacts.json`.
+  
      - The `artifacts.json` can be created by the user themselves as well, providing them flexibility to load the artifacts from some totally different places and not necessarily from the same directory.
      - As we assume users create this json themselves, we would assume it is safe to load the artifacts from the paths specified. `pkg.load` would just do the reconciliation and see if the loaded artifacts have been loaded correctly or not.
+     
   2. The `pkg.load()` calls internally `datamodule.load()` (if scalers or any other artifact that data module saves is present in the `artifacts.json`) and `model.load()`.
+
      - If the datamodule has anything to load (like scalers, metadata etc), it will load it otherwise return `None`. Similarly, the model loads the model weights using `model._load_from_checkpoint()`.
      - The `pkg` class just performs the check if everything is loaded correctly and if there is no error or issue.
 

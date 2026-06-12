@@ -338,7 +338,8 @@ Meaning, for `load` and `save`:
 
   1. The `pkg.load()` reads `artifacts.json` to see what to load and from where to `load`. It would load everything present in the `artifacts.json`.
   
-     - The `artifacts.json` can be created by the user themselves as well, providing them flexibility to load the artifacts from some totally different places and not necessarily from the same directory.
+     - The `artifacts.json` can be created by the user themselves as well, providing them flexibility to load the artifacts of their choice from their own directory.
+       - Optimally, the artifacts should be in the same directory as `artifacts.json` or you would have to pass complete path to the artifacts.
      - As we assume users create this json themselves, we would assume it is safe to load the artifacts from the paths specified. `pkg.load` would just do the reconciliation and see if the loaded artifacts have been loaded correctly or not.
      
   2. The `pkg.load()` calls internally `datamodule.load()` (if scalers or any other artifact that data module saves is present in the `artifacts.json`) and `model.load()`.

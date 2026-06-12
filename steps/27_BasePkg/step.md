@@ -349,9 +349,424 @@ Meaning, for `load` and `save`:
 As the cfgs(`model_cfg`, `trainer_cfg` and `datamodule_cfg`) are passed to `BasePkg`, it should save these cfgs and then call the respective layers (D2 and M) to save (or load) their artifacts.
 
 ### Vignettes
+The following vignettes assume we have imported all the classes and mainly focuses on loading and saving, all the other params of the methods are ignored and irrelevant for this specific case.
+All the other params are assumed to be populated as per requirement.
+#### save
+**Case-1: Saving model checkpoints only** 
+1. Scalers were not passed to data module, and nothing was passed to `exclude`:
+    - using `fit`
+    ```python
+    # data module config
+    datamodule_cfg = dict(
+        max_encoder_length=30,
+        max_prediction_length=1,
+        batch_size=32,
+        target_normalizer=None,
+        # scalers are already None by default, so we dont need to pass scalers=None
+    )
 
+    # model config
+    model_cfg = dict(
+        loss=MAE(),
+        logging_metrics=[MAE(), SMAPE()],
+        optimizer="adam",
+        ...
+    )
 
-#### Pseudocode
+    # trainer config
+    trainer_cfg = dict(
+        max_epochs=5,
+        accelerator="auto",
+        devices=1,
+        ...
+    )
+    
+    model_pkg = TFT_pkg_v2(
+        model_cfg,
+        datamodule_cfg,
+        trainer_cfg
+    )
+   
+   # fitting and checkpointing
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        ...
+    )
+    ```
+   - using `pkg.save` directly
+    ```python
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ...
+    )
+   
+    model_pkg.save(
+    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+    )
+    ```
+    Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.json`.
+    The output would look like this:
+    ```terminaloutput
+    INFO: The model checkpoints are saved in checkpoints/model_ckpt/
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    WARNING: There were no scalers or target normalizers to save, please add scalers and target normalizers to the datamodule to save them.
+    ```
+    And `artifacts.json` would look like this:
+    ```json
+    {
+    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    }
+    ```
+2. Scalers were not passed, but scalers were passed to `exclude`:
+    - using `fit`
+    ```python
+     # data module config
+     datamodule_cfg = dict(
+         max_encoder_length=30,
+         max_prediction_length=1,
+         batch_size=32,
+         target_normalizer=None,
+         # scalers are already None by default, so we dont need to pass scalers=None
+     )
+    
+     # model config
+     model_cfg = dict(
+         loss=MAE(),
+         logging_metrics=[MAE(), SMAPE()],
+         optimizer="adam",
+         ...
+     )
+    
+     # trainer config
+     trainer_cfg = dict(
+         max_epochs=5,
+         accelerator="auto",
+         devices=1,
+         ...
+     )
+     
+     model_pkg = TFT_pkg_v2(
+         model_cfg,
+         datamodule_cfg,
+         trainer_cfg
+     )
+    
+    # fitting and checkpointing
+     ckpt_dir = "checkpoints"
+     best_model = model_pkg.fit(
+         dataset, # a TimeSeries Object of dataset
+         # here, splitting into train, test happens inside the datamodule, so 
+         # you dont always have to pass train data, the whole dataset will also work 
+         # choice is upto the user
+         ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+         model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+         exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+         ...
+     )
+    ```
+    - using `pkg.save` directly
+    ```python
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ...
+    )
+   
+    model_pkg.save(
+    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+    exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+    )
+    ```
+    Here we have passed `"scaler"` and  `"target_normalizer"` to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.json`.
+    The output would look like this:
+    ```terminaloutput
+    INFO: The model checkpoints are saved in checkpoints/model_ckpt/
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    # no warning as user wanted scalers excluded
+    ```
+    And `artifacts.json` would look like this:
+    ```json
+    {
+    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    }
+    ```
+3. Scalers were passed to data module, and scalers were passed to `exclude`:
+   - using `fit`
+   ```python
+   scalers = {
+        "cont_feat1": EncoderNormalizer(),
+        "cont_feat2": StandardScaler(),
+   }
+   # data module config
+   datamodule_cfg = dict(
+       max_encoder_length=30,
+       max_prediction_length=1,
+       batch_size=32,
+       target_normalizer=TorchNormalizer(),
+       scalers=scalers
+       # scalers are already None by default, so we dont need to pass scalers=None
+   )
+  
+   # model config
+   model_cfg = dict(
+       loss=MAE(),
+       logging_metrics=[MAE(), SMAPE()],
+       optimizer="adam",
+       ...
+   )
+ 
+    # trainer config
+    trainer_cfg = dict(
+        max_epochs=5,
+        accelerator="auto",
+        devices=1,
+        ...
+    )
+    
+    model_pkg = TFT_pkg_v2(
+        model_cfg,
+        datamodule_cfg,
+        trainer_cfg
+    )
+    
+    #   fitting and checkpointing
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+        ...
+    )
+   ```
+   - using `pkg.save`
+   ```python
+     ckpt_dir = "checkpoints"
+     best_model = model_pkg.fit(
+         dataset, # a TimeSeries Object of dataset
+         # here, splitting into train, test happens inside the datamodule, so 
+         # you dont always have to pass train data, the whole dataset will also work 
+         # choice is upto the user
+         ...
+     )
+    
+     model_pkg.save(
+     ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+     model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+     exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+     )
+   ```
+   Here we have passed `"scaler"` and  `"target_normalizer"` to `exclude`, although we have `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.json`.
+   The output would look like this:
+   ```terminaloutput
+    INFO: The model checkpoints are saved in checkpoints/model_ckpt/
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    # no warning as user wanted scalers excluded
+   ```
+   And `artifacts.json` would look like this:
+   ```json
+    {
+    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    }
+   ```
+
+**Case-2: Saving all the artifacts** 
+1. Scalers were not passed to data module, and nothing was passed to `exclude`:
+    - using `fit`
+    ```python
+    # data module config
+    datamodule_cfg = dict(
+        max_encoder_length=30,
+        max_prediction_length=1,
+        batch_size=32,
+        target_normalizer=None,
+        # scalers are already None by default, so we dont need to pass scalers=None
+    )
+
+    # model config
+    model_cfg = dict(
+        loss=MAE(),
+        logging_metrics=[MAE(), SMAPE()],
+        optimizer="adam",
+        ...
+    )
+
+    # trainer config
+    trainer_cfg = dict(
+        max_epochs=5,
+        accelerator="auto",
+        devices=1,
+        ...
+    )
+    
+    model_pkg = TFT_pkg_v2(
+        model_cfg,
+        datamodule_cfg,
+        trainer_cfg
+    )
+   
+   # fitting and checkpointing
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        ...
+    )
+    ```
+   - using `pkg.save` directly
+    ```python
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ...
+    )
+   
+    model_pkg.save(
+    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+    )
+    ```
+    Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.json`.
+    The output would look like this:
+    ```terminaloutput
+    INFO: The model checkpoints are saved in checkpoints/model_ckpt/
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    ```
+    And `artifacts.json` would look like this:
+    ```json
+    {
+    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    }
+    ```
+2. Scalers were passed to data module, and nothing was passed to `exclude`:
+    - using `fit`
+    ```python
+     scalers = {
+          "cont_feat1": EncoderNormalizer(),
+          "cont_feat2": StandardScaler(),
+     }
+     # data module config
+     datamodule_cfg = dict(
+         max_encoder_length=30,
+         max_prediction_length=1,
+         batch_size=32,
+         target_normalizer=TorchNormalizer(),
+         scalers=scalers
+         # scalers are already None by default, so we dont need to pass scalers=None
+     )
+    
+     # model config
+     model_cfg = dict(
+         loss=MAE(),
+         logging_metrics=[MAE(), SMAPE()],
+         optimizer="adam",
+         ...
+     )
+    
+     # trainer config
+     trainer_cfg = dict(
+         max_epochs=5,
+         accelerator="auto",
+         devices=1,
+         ...
+     )
+     
+     model_pkg = TFT_pkg_v2(
+         model_cfg,
+         datamodule_cfg,
+         trainer_cfg
+     )
+    
+    # fitting and checkpointing
+     ckpt_dir = "checkpoints"
+     best_model = model_pkg.fit(
+         dataset, # a TimeSeries Object of dataset
+         # here, splitting into train, test happens inside the datamodule, so 
+         # you dont always have to pass train data, the whole dataset will also work 
+         # choice is upto the user
+         ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+         model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+         ...
+     )
+    ```
+    - using `pkg.save` directly
+    ```python
+    ckpt_dir = "checkpoints"
+    best_model = model_pkg.fit(
+        dataset, # a TimeSeries Object of dataset
+        # here, splitting into train, test happens inside the datamodule, so 
+        # you dont always have to pass train data, the whole dataset will also work 
+        # choice is upto the user
+        ...
+    )
+   
+    model_pkg.save(
+    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+    )
+    ```
+    Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), the model checkpoints and scalers would be saved and logged in `artifacts.json`.
+    The output would look like this:
+    ```terminaloutput
+    INFO: The model checkpoints are saved in checkpoints/model_ckpt/
+    INFO: The scalers and target normalizer are saved in checkpoints/scalers/
+    INFO: All the artifacts saved are logged in checkpoints/artifacts.json
+    ```
+    And `artifacts.json` would look like this:
+    ```json
+    {
+    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+    "scalers" : "checkpoints/scalers/scalers.pkl",
+    "target_normalizers" : "checkpoints/scalers/target_normalizers.pkl",
+    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    }
+    ```
+### Pseudocode
 
 **`BasePkg` root**
 

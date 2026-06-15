@@ -322,14 +322,14 @@ Meaning, for `load` and `save`:
 
   1. The `pkg.save` calls internally `datamodule.save` and `model.save`.
 
-     - Here, we would also have an arg called `exclude` (present in `fit` and `pkg.save`) which expects a `list` of strings and the user can decide what to "exclude" while saving (like excluding scalers and saving only the model weights). By default, it would be empty
+     - Here, we would also have an arg called `exclude` (present in `fit` and `pkg.save`) which expects a `list` of strings and the user can decide what to "exclude" while saving (like excluding scalers and saving only the model weights). By default, it would be empty. See the vignettes in the next section for more info.
        - But we would always save the `model_cfg` and `data_module_cfg` and user cant pass these to `exclude`.
   
   2. If the datamodule has scalers (or any other artifact) to save, it would save it and return the path of the saved artifact else, return `None`. The model saves the model weights using `ModelCheckpoint`.
 
   3. After collecting the paths where all the artifacts have been saved from the D2 and M layers, it would create a `artifacts.json` that would save the aritfacts and the place they are saved
 
-     - This would save us from writing a long `if-else` block and the `load` would simply read through this json and load everything. So, in case user has decided to exclude anything or D2 layer didnt have anything to save (eg, `scalers` were not initializer), `load` would not face any issues.
+     - This would be a cleaner solution that looking over the whole directory to see if scalers are present or not and the `load` would simply read through this json and load everything. So, in case user has decided to exclude anything or D2 layer didnt have anything to save (eg, `scalers` were not initializer), `load` would not face any issues.
      - Obviously, if D2 returns `None` meaning it had nothing to `save` we would raise warnings.
   
   4. The `pkg` class just performs the reconciliation and make sure if everything is saved in correct places or not.
@@ -339,8 +339,8 @@ Meaning, for `load` and `save`:
   1. The `pkg.load()` reads `artifacts.json` to see what to load and from where to `load`. It would load everything present in the `artifacts.json`.
   
      - The `artifacts.json` can be created by the user themselves as well, providing them flexibility to load the artifacts of their choice from their own directory.
-       - Optimally, the artifacts should be in the same directory as `artifacts.json` or you would have to pass complete path to the artifacts.
-     - As we assume users create this json themselves, we would assume it is safe to load the artifacts from the paths specified. `pkg.load` would just do the reconciliation and see if the loaded artifacts have been loaded correctly or not.
+       - The artifacts should be in the same directory as `artifacts.json` to prevent any confusion and loading any dangerous artifacts from any random place.
+     - As we assume users create this json themselves (or this `json` was created by the `save` method which also user controlled), we would assume it is safe to load the artifacts from the paths specified. `pkg.load` would just do the reconciliation and see if the loaded artifacts have been loaded correctly or not.
      
   2. The `pkg.load()` calls internally `datamodule.load()` (if scalers or any other artifact that data module saves is present in the `artifacts.json`) and `model.load()`.
 
@@ -352,6 +352,7 @@ As the cfgs(`model_cfg`, `trainer_cfg` and `datamodule_cfg`) are passed to `Base
 ### Vignettes
 The following vignettes assume we have imported all the classes and mainly focuses on loading and saving, all the other params of the methods are ignored and irrelevant for this specific case.
 All the other params are assumed to be populated as per requirement.
+
 #### save
 **Case-1: Saving model checkpoints only** 
 1. Scalers were not passed to data module, and nothing was passed to `exclude`:
@@ -401,6 +402,7 @@ All the other params are assumed to be populated as per requirement.
     )
     ```
    - using `pkg.save` directly
+     - **NOTE** if you call this method after `fit`, it will save the model checkpoints from the very LAST epoch and not the best model.
     ```python
     ckpt_dir = "checkpoints"
     best_model = model_pkg.fit(
@@ -426,11 +428,13 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.json` would look like this:
     ```json
     {
-    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
-    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
-    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
-    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
-    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    "artifacts": {
+        "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+        "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+        "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+        "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+        "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+      }
     }
     ```
 2. Scalers were not passed, but scalers were passed to `exclude`:
@@ -481,6 +485,7 @@ All the other params are assumed to be populated as per requirement.
      )
     ```
     - using `pkg.save` directly
+      - **NOTE** if you call this method after `fit`, it will save the model checkpoints from the very LAST epoch and not the best model.
     ```python
     ckpt_dir = "checkpoints"
     best_model = model_pkg.fit(
@@ -507,11 +512,13 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.json` would look like this:
     ```json
     {
-    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
-    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
-    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
-    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
-    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    "artifacts": {
+        "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+        "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+        "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+        "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+        "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+      }
     }
     ```
 3. Scalers were passed to data module, and scalers were passed to `exclude`:
@@ -567,6 +574,7 @@ All the other params are assumed to be populated as per requirement.
     )
    ```
    - using `pkg.save`
+     - **NOTE** if you call this method after `fit`, it will save the model checkpoints from the very LAST epoch and not the best model. 
    ```python
      ckpt_dir = "checkpoints"
      best_model = model_pkg.fit(
@@ -593,11 +601,13 @@ All the other params are assumed to be populated as per requirement.
    And `artifacts.json` would look like this:
    ```json
     {
-    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
-    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
-    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
-    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
-    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    "artifacts": {
+        "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+        "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+        "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+        "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+        "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+      }
     }
    ```
 
@@ -649,6 +659,7 @@ All the other params are assumed to be populated as per requirement.
     )
     ```
    - using `pkg.save` directly
+     - **NOTE** if you call this method after `fit`, it will save the model checkpoints from the very LAST epoch and not the best model. 
     ```python
     ckpt_dir = "checkpoints"
     best_model = model_pkg.fit(
@@ -674,11 +685,13 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.json` would look like this:
     ```json
     {
-    "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
-    "model_cfg" : "checkpoints/configs/model_cfg.pkl",
-    "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
-    "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
-    "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+    "artifacts": {
+        "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+        "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+        "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+        "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+        "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+      }
     }
     ```
 2. Scalers were passed to data module, and nothing was passed to `exclude`:
@@ -733,6 +746,7 @@ All the other params are assumed to be populated as per requirement.
      )
     ```
     - using `pkg.save` directly
+      - **NOTE** if you call this method after `fit`, it will save the model checkpoints from the very LAST epoch and not the best model. 
     ```python
     ckpt_dir = "checkpoints"
     best_model = model_pkg.fit(
@@ -748,7 +762,7 @@ All the other params are assumed to be populated as per requirement.
     model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
     )
     ```
-    Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), the model checkpoints and scalers would be saved and logged in `artifacts.json`.
+    Here we have passed nothing to `exclude`, but as we have `scalers` to save (see `datamodule_cfg`), the model checkpoints and scalers would be saved and logged in `artifacts.json`.
     The output would look like this:
     ```terminaloutput
     INFO: The model checkpoints are saved in checkpoints/model_ckpt/
@@ -758,6 +772,42 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.json` would look like this:
     ```json
     {
+    "artifacts": {
+        "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+        "scalers" : "checkpoints/scalers/scalers.pkl",
+        "target_normalizers" : "checkpoints/scalers/target_normalizers.pkl",
+        "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+        "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+        "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+        "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+      }
+    }
+    ```
+   
+#### Load
+To load the artifacts, the user has just one end-point - `pkg.load()`. They must pass a path to the directory where `artifacts.json` is saved. This directory must contain all the artifacts the user want to load. 
+If the user want to skip loading any specific artifact that is present in the `artifacts.json`, they 3 options:
+- add that to `exclude` in `pkg.save`.
+- OR add a new key `"skip"` in the json and add the list of artifacts that need to be skipped there
+- OR a more dangerous take - delete that entry from the json, but that would lead the loss of location of that artifact.
+We should not have a `exclude` (or similar) param in `load` to keep `load` simple and lean - a naive laoder which loads everything it sees. The save-time `exclude` is where that decision belongs, if the user didn't want something persisted, they shouldn't have saved it. The `"skip"` key is an option for edge cases (see the end of this section for more information).
+
+(Also see an alternative design of load in the next section)
+
+```python
+model_pkg.load("checkpoints")
+```
+
+This will read the `artifacts.json` and load everything present in it.
+```terminaloutput
+INFO: Loaded best_model, scalers and target_normalizers from ./checkpoints/
+```
+The cfgs and metadata are not mentioned here as they are used internally and the user usually dont need info about them
+
+Here if the user wants to skip any specific artifact from `artifacts.json` by adding `"skip"` key to the json, it should be something like this:
+```json
+{
+  "artifacts": {
     "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
     "scalers" : "checkpoints/scalers/scalers.pkl",
     "target_normalizers" : "checkpoints/scalers/target_normalizers.pkl",
@@ -765,13 +815,35 @@ All the other params are assumed to be populated as per requirement.
     "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
     "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
     "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
-    }
-    ```
-### Pseudocode
+  },
+  "skip": ["scalers"]
+}
+```
+This would skip the scalers and the output would look like this:
+```terminaloutput
+INFO: Loaded best_model and target_normalizers from ./checkpoints/
+WARNING: scalers were not loaded as they were present in "skip" key of artifacts.json.
+```
 
-**`BasePkg` root**
+This kind of skip would be useful for the case when the user has created their own json or when they saved the artifacts but dont want to use for a specific experiment - like they saved the scalers but dont want to use them in a specific run.
+The only downside is they have to change the `artifacts.json` themselves, which is intentional to cater to the more "generic" use-case where we save what we need to use and exclude rest of the things while keeping `load` as simple and lean as possible. The `skip` key is added to provide as a solution to the edge case.
+One point to note there - as the user can "exclude" the cfgs, they cant "skip" them as well, they would have to add their own cfgs to override the saved cfgs if they dont want to use them
+
+##### Alternative Design for load
+We can also move the `"skip"` to the `pkg.load()` instead, it will add a bit more complexity to the `load` as compared to "naive" loader. And the user can pass the `list` of artifacts they want to skip from loading and it would save them from any effort to change the `json` themselves.
+
+**Example**
+```python
+model_pkg.load("checkpoints", skip=["scalers"])
+```
+This will read the `artifacts.json` and skip the scalers from it and load rest of the things.
+
+### Pseudocode 
+
+**`BasePkg`**
 
 Here we would just save the artifacts that are used by all kind of models - model checkpoints, model cfgs, data module cfgs and trainer cfgs.
+The docstrings below are not the actual docstrings that would be added to the class, but the docstring that explains what each method do in detail.
 ```python
 # inside BasePkg
 
@@ -780,28 +852,36 @@ def __init__(
         model_cfg: dict[str, Any] | str | Path | None = None,
         trainer_cfg: dict[str, Any] | str | Path | None = None,
         datamodule_cfg: dict[str, Any] | str | Path | None = None,
-        ckpt_path: str | Path | None = None,
 ):
-  """``__init__()`` of ``BasePkg``
-  
-  The user dont have to call ``load`` separately to laod the model and its artifact, just passing the 
-  ``ckpt_path`` during initialization would be enough.
-  The __init__() would just call ``load`` here if we have ``ckpt_path`` and it will load the model 
-  and other artifacts.
-  """
+  """``__init__()`` of ``BasePkg`` """
     self.model_cfg = model_cfg
     self.trainer_cfg = trainer_cfg
     self.datamodule_cfg = datamodule_cfg
-    self.ckpt_path = ckpt_path
-    
-    if ckpt_path is not None:
-        self.load(self.ckpt_path)
-        
+    ...
 
-@staticmethod
-def load(ckpt_path):
+
+def load(self, ckpt_path):
     """load the model and its artifact.
     
+    It will load all the artifacts that are present in `artifacts.json`.
+    If you want to skip anything you want to load, you have three options:
+    - add that to `exclude` in `pkg.save`.
+    - OR add a new key `"skip"` in the json and add the list of artifacts that need to be skipped there
+       like:
+             {
+                 "artifacts": {
+                   "best_model" : "checkpoints/model_ckpt/best_model.ckpt",
+                   "scalers" : "checkpoints/scalers/scalers.pkl",
+                   "target_normalizers" : "checkpoints/scalers/target_normalizers.pkl",
+                   "model_cfg" : "checkpoints/configs/model_cfg.pkl",
+                   "datamodule_cfg" : "checkpoints/configs/datamodule_cfg.pkl",
+                   "trainer_cfg" : "checkpoints/configs/trainer_cfg.pkl",
+                   "datamodule_metadata" : "checkpoints/metadata/datamodule_metadata.pkl"
+                 },
+                 "skip": ["scalers"]
+             } 
+    - OR a more dangerous take - delete that entry from the json, but that would lead the loss of location of that artifact.
+
     It would use ``._load_from_checkpoint()`` of ``lightning`` for model ckpts.
     The cfgs would be loaded  using ``_load_configs()`` of the current implementation works (see above) - it would 
     load cfgs from the ``pkl``, ``yaml`` files. If the user passes a cfg as a ``dict``, it would be given
@@ -812,14 +892,17 @@ def load(ckpt_path):
         Path where the checkpoints (like model ckpts, cfgs etc) are stored.
     """
     # load the models and other artifacts here
-    
-@staticmethod
-def save(ckpt_path, ckpt_kwargs):
-    """load the model and its artifact.
+    # 1. Read the artifacts and see what to skip using "skip" key
+    #    1.1 In the alternative design, this skip param is passed to the method, and 
+    #         load method would simply skip those artifacts from the json file
+    # 2. Load the artifacts
+
+def save(self, ckpt_path, ckpt_kwargs):
+    """save the model and its artifact.
     
     The method would use ``ModelCheckpoint`` for saving model ckpts inside ``ckpt_path/model_checkpoints`` folder. The cfgs would be saved as ``pkl`` files in 
     ``ckpt_path/configs`` folder. ``metadata`` of datamodule is saved as ``pkl`` file in ``ckpt_path/metadata`` folder.
-    
+    Writes all the saved artifacts to ``artifacts.json``
     Complete folder structure is like this:
     
     ckpt_path/
@@ -831,26 +914,37 @@ def save(ckpt_path, ckpt_kwargs):
          └── trainer_cfg.pkl
    └── metadata/
          └── datamodule_metadata.pkl
+   └── artifacts.json
          
     Parameters
     ----------
     ckpt_path: str, Path
-        Path where the checkpoints (like model ckpts, cfgs etc) are to be stored.
+        Path where the checkpoints (like model ckpts, cfgs etc) are to be stored. 
     ckpt_kwargs : dict, optional
         Keyword arguments passed to ``ModelCheckpoint``.
+    exclude : dict, optional
+        The list of artifacts you want to exclude from saving   
     
     Returns
     -------
     Path
-        The path to the model checkpoint
+        The path to the artifacts.json
     """
     # save the model and other artifacts here
+    # 1. Write the configs to ckpt_path/configs
+    # 2. Call datamodule.save_scalers to save the scalers and target_normalizers and 
+    # accept the dict of artifacts saved and path to them
+    # 3. Call the Base model to save the model checkpoints and get the path they were 
+    # saved to in form of a dict
+    # 4. Write everything to the artifacts.json - see the vignettes section to see different 
+    # possibilities of how artifacts.json would look like in different situations.
+    
+
     
 def fit(
         self,
         data: TimeSeries | LightningDataModule,
-        save_ckpt: bool = True,
-        ckpt_dir: str | Path = "checkpoints",
+        ckpt_dir: str | Path | None = None,
         ckpt_kwargs: dict[str, Any] | None = None,
         **trainer_fit_kwargs
 ):
@@ -861,11 +955,9 @@ def fit(
     data : Union[TimeSeries, LightningDataModule]
         The data to fit on (D1 or D2 layer). This object is responsible
         for providing both training and validation data.
-    save_ckpt : bool, default=True
-        If True, save the best model checkpoint and other artifacts like cfgs etc.
-    ckpt_dir : Union[str, Path], default="checkpoints"
-        Directory to save artifacts.
-    ckpt_kwargs : dict, optional
+    ckpt_dir : Union[str, Path], default=None
+        Directory to save artifacts. Save the artifacts if not NOne else dont save the artifacts
+    model_ckpt_kwargs : dict, optional
         Keyword arguments passed to ``ModelCheckpoint``.
     **trainer_fit_kwargs :
         Additional keyword arguments passed to `trainer.fit()`.
@@ -881,4 +973,112 @@ def fit(
     if save_ckpt:
         self.save(ckpt_dir, ckpt_kwargs)
         
+```
+
+* **`datamodule` save and load methods**
+
+```python
+# inside data module
+
+def save(self, ckpt_path):
+    """Save the datamodule scalers and target_normalizer
+    
+    It will be called by the Base_pkg.save to save the scalers and target normalizers of the data module
+    
+    Parameters
+    ----------
+    ckpt_path : str, Path
+        path to save the artifacts
+        
+    Saves
+    -----
+    scalers: feature scalers to ckpt_path/scalers/scalers.pkl - a pickle file
+    target_normalizer: target normalizers to ckpt_path/scalers/target_normalizer.pkl  - a pickle file
+    
+    Returns
+    -------
+    dict: dictionary of the artifacts saved and their paths
+        for eg, if both scalers and target_normalizers are saved
+            {
+                "scalers": path-to-scalers
+                "target_normalizers" " path-to-target_normalizers
+            }
+            It would have only the keys that we need to save
+        None if nothing is saved
+    
+    """
+    # save the scalers and return the dict of artifacts and its paths
+
+def load(self, artifacts):
+    """load the datamodule scalers and target_normalizer
+    
+    It will be called by the Base_pkg.loaf to load the scalers and target normalizers of the data module
+    
+    Parameters
+    ----------
+    artifacts : dict
+        dictionary of the artifacts to be laoded
+        Dict would look like this (if both the artifacts are present):
+        {
+                "scalers": path-to-scalers
+                "target_normalizers" " path-to-target_normalizers
+        }
+        It would have only the keys that we need to load
+        
+    Loads
+    -----
+    scalers: feature scalers from the path-to-target_normalizers 
+    target_normalizer: target normalizers to path-to-target_normalizers
+    """
+```
+
+* **`model` save and load**
+```python
+# inside BaseModel
+
+def save(self, ckpt_path):
+    """Save the model checkpoints
+    
+    It will be called by the Base_pkg.save to save the model checkpoints using ModelCheckpoint
+    
+    Parameters
+    ----------
+    ckpt_path : str, Path
+        path to save the artifacts
+        
+    Saves
+    -----
+    model checkpoints: feature scalers to ckpt_path/checkpoints/best-epoch=X-step=Y.ckpt 
+    
+    Returns
+    -------
+    dict: dictionary of the artifacts saved and their paths
+        for eg
+            {
+                "model_checkpoints": path-to-model_checkpoints
+            }
+        None if nothing is saved
+    
+    """
+    # save the model checkpoints and return the dict of artifacts and its paths
+
+def load(self, artifacts):
+    """load the model checkpoints
+    
+    It will be called by the Base_pkg.loaf to load the smodel checkpoints
+    
+    Parameters
+    ----------
+    artifacts : dict
+        dictionary of the artifacts to be loaded
+        Dict would look like this:
+        {
+                "model_checkpoints": path-to-model_checkpoints
+        }
+        It would have only the keys that we need to load
+        
+    Loads
+    -----
+    model checkpoints: feature scalers from path-to-model_checkpoints
+    """
 ```

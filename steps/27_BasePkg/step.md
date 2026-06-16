@@ -428,10 +428,10 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.yaml` would look like this:
     ```yaml
     artifacts:
-        best_model : "checkpoints/model_ckpt/best_model.ckpt",
-        model_cfg : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl",
+        best_model : "checkpoints/model_ckpt/best_model.ckpt"
+        model_cfg : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
 
     ```
@@ -510,10 +510,10 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.yaml` would look like this:
     ```yaml
     artifact: 
-        best_mode : "checkpoints/model_ckpt/best_model.ckpt",
-        model_cf : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cf : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cf : "checkpoints/configs/trainer_cfg.pkl",
+        best_mode : "checkpoints/model_ckpt/best_model.ckpt"
+        model_cf : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cf : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cf : "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadat : "checkpoints/metadata/datamodule_metadata.pkl
     
     ```
@@ -596,10 +596,10 @@ All the other params are assumed to be populated as per requirement.
    And `artifacts.yaml` would look like this:
    ```yaml
     artifacts: 
-        best_model : "checkpoints/model_ckpt/best_model.ckpt",
-        model_cfg : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cfg: "checkpoints/configs/trainer_cfg.pkl",
+        best_model : "checkpoints/model_ckpt/best_model.ckpt"
+        model_cfg : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cfg: "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
    ```
 
@@ -677,10 +677,10 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.yaml` would look like this:
     ```yaml
     artifacts: 
-        best_model : "checkpoints/model_ckpt/best_model.ckpt",
-        model_cfg : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl",
+        best_model : "checkpoints/model_ckpt/best_model.ckpt"
+        model_cfg : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
     ```
 2. Scalers were passed to data module, and nothing was passed to `exclude`:
@@ -760,12 +760,12 @@ All the other params are assumed to be populated as per requirement.
     And `artifacts.yaml` would look like this:
     ```yaml
     artifacts: 
-        best_model : "checkpoints/model_ckpt/best_model.ckpt",
-        scalers : "checkpoints/scalers/scalers.pkl",
-        target_normalizers : "checkpoints/scalers/target_normalizers.pkl",
-        model_cfg : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl",
+        best_model : "checkpoints/model_ckpt/best_model.ckpt"
+        scalers : "checkpoints/scalers/scalers.pkl"
+        target_normalizers : "checkpoints/scalers/target_normalizers.pkl"
+        model_cfg : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
     ```
    
@@ -792,12 +792,12 @@ The cfgs and metadata are not mentioned here as they are used internally and the
 Here if the user wants to skip any specific artifact from `artifacts.yaml` by adding `"skip"` key to the yaml, it should be something like this:
 ```yaml
   artifacts: 
-        best_model : "checkpoints/model_ckpt/best_model.ckpt",
-        scalers : "checkpoints/scalers/scalers.pkl",
-        target_normalizers : "checkpoints/scalers/target_normalizers.pkl",
-        model_cfg : "checkpoints/configs/model_cfg.pkl",
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl",
+        best_model : "checkpoints/model_ckpt/best_model.ckpt"
+        scalers : "checkpoints/scalers/scalers.pkl"
+        target_normalizers : "checkpoints/scalers/target_normalizers.pkl"
+        model_cfg : "checkpoints/configs/model_cfg.pkl"
+        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
         datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
   skip: ["scalers"]
 ```
@@ -852,14 +852,13 @@ def load(self, ckpt_path):
        like:
     
                  artifacts: 
-                   best_model : "checkpoints/model_ckpt/best_model.ckpt",
-                   scalers : "checkpoints/scalers/scalers.pkl",
-                   target_normalizers : "checkpoints/scalers/target_normalizers.pkl",
-                   model_cfg : "checkpoints/configs/model_cfg.pkl",
-                   datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl",
-                   trainer_cfg : "checkpoints/configs/trainer_cfg.pkl",
+                   best_model : "checkpoints/model_ckpt/best_model.ckpt"
+                   scalers : "checkpoints/scalers/scalers.pkl"
+                   target_normalizers : "checkpoints/scalers/target_normalizers.pkl"
+                   model_cfg : "checkpoints/configs/model_cfg.pkl"
+                   datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
+                   trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
                    datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
-                 
                  skip: ["scalers"]
               
     - OR a more dangerous take - delete that entry from the yaml, but that would lead the loss of location of that artifact.

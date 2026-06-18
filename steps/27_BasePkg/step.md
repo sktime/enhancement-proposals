@@ -414,8 +414,8 @@ All the other params are assumed to be populated as per requirement.
     )
    
     model_pkg.save(
-    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
-    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
     )
     ```
     Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.yaml`.
@@ -495,9 +495,9 @@ All the other params are assumed to be populated as per requirement.
     )
    
     model_pkg.save(
-    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
-    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
-    exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
     )
     ```
     Here we have passed `"scaler"` and  `"target_normalizer"` to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.yaml`.
@@ -581,9 +581,9 @@ All the other params are assumed to be populated as per requirement.
      )
     
      model_pkg.save(
-     ckpt_dir=ckpt_dir, # not None means we do the checkpointing
-     model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
-     exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        exclude = ["scaler", "target_normalizer"] # dont save scalers and target_normalizers
      )
    ```
    Here we have passed `"scaler"` and  `"target_normalizer"` to `exclude`, although we have `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.yaml`.
@@ -663,8 +663,8 @@ All the other params are assumed to be populated as per requirement.
     )
    
     model_pkg.save(
-    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
-    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
     )
     ```
     Here we have passed nothing to `exclude`, but as we have no `scalers` to save (see `datamodule_cfg`), only the model checkpoints would be saved and logged in `artifacts.yaml`.
@@ -746,8 +746,8 @@ All the other params are assumed to be populated as per requirement.
     )
    
     model_pkg.save(
-    ckpt_dir=ckpt_dir, # not None means we do the checkpointing
-    model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
+        ckpt_dir=ckpt_dir, # not None means we do the checkpointing
+        model_ckpt_kwargs={"monitor": "train_loss_epoch"}, # for ModelCheckpoint
     )
     ```
     Here we have passed nothing to `exclude`, but as we have `scalers` to save (see `datamodule_cfg`), the model checkpoints and scalers would be saved and logged in `artifacts.yaml`.
@@ -773,10 +773,7 @@ All the other params are assumed to be populated as per requirement.
 To load the artifacts, the user has just one end-point - `pkg.load()`. They must pass a path to the directory where `artifacts.yaml` is saved. This directory must contain all the artifacts the user want to load. 
 If the user want to skip loading any specific artifact that is present in the `artifacts.yaml`, they 3 options:
 - add that to `exclude` in `pkg.save`.
-- OR add a new key `"skip"` in the yaml and add the list of artifacts that need to be skipped there
-- OR a more dangerous take - delete that entry from the yaml, but that would lead the loss of location of that artifact.
-We should not have a `exclude` (or similar) param in `load` to keep `load` simple and lean - a naive laoder which loads everything it sees. The save-time `exclude` is where that decision belongs, if the user didn't want something persisted, they shouldn't have saved it. The `"skip"` key is an option for edge cases (see the end of this section for more information).
-
+- OR pass `list` of artifacts to `skip` param of `pkg.load`.
 (Also see an alternative design of load in the next section)
 
 ```python
@@ -789,35 +786,16 @@ INFO: Loaded best_model, scalers and target_normalizers from ./checkpoints/
 ```
 The cfgs and metadata are not mentioned here as they are used internally and the user usually dont need info about them
 
-Here if the user wants to skip any specific artifact from `artifacts.yaml` by adding `"skip"` key to the yaml, it should be something like this:
-```yaml
-  artifacts: 
-        best_model : "checkpoints/model_ckpt/best_model.ckpt"
-        scalers : "checkpoints/scalers/scalers.pkl"
-        target_normalizers : "checkpoints/scalers/target_normalizers.pkl"
-        model_cfg : "checkpoints/configs/model_cfg.pkl"
-        datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
-        trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
-        datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
-  skip: ["scalers"]
+Here if the user wants to skip any specific artifact from `artifacts.yaml` by adding `skip` param to the mmethod:
+```python
+model_pkg.load("checkpoints", skip=["scalers"])
 ```
 This would skip the scalers and the output would look like this:
 ```terminaloutput
 INFO: Loaded best_model and target_normalizers from ./checkpoints/
-WARNING: scalers were not loaded as they were present in "skip" key of artifacts.yaml.
+WARNING: scalers were not loaded as they were present in "skip" param.
 ```
 
-This kind of skip would be useful for the case when the user has created their own yaml or when they saved the artifacts but dont want to use for a specific experiment - like they saved the scalers but dont want to use them in a specific run.
-The only downside is they have to change the `artifacts.yaml` themselves, which is intentional to cater to the more "generic" use-case where we save what we need to use and exclude rest of the things while keeping `load` as simple and lean as possible. The `skip` key is added to provide as a solution to the edge case.
-One point to note there - as the user can "exclude" the cfgs, they cant "skip" them as well, they would have to add their own cfgs to override the saved cfgs if they dont want to use them
-
-##### Alternative Design for load
-We can also move the `"skip"` to the `pkg.load()` instead, it will add a bit more complexity to the `load` as compared to "naive" loader. And the user can pass the `list` of artifacts they want to skip from loading and it would save them from any effort to change the `yaml` themselves.
-
-**Example**
-```python
-model_pkg.load("checkpoints", skip=["scalers"])
-```
 This will read the `artifacts.yaml` and skip the scalers from it and load rest of the things.
 
 ### Pseudocode 
@@ -847,21 +825,9 @@ def load(self, ckpt_path):
     
     It will load all the artifacts that are present in `artifacts.yaml`.
     If you want to skip anything you want to load, you have three options:
-    - add that to `exclude` in `pkg.save`.
-    - OR add a new key `"skip"` in the yaml and add the list of artifacts that need to be skipped there
-       like:
     
-                 artifacts: 
-                   best_model : "checkpoints/model_ckpt/best_model.ckpt"
-                   scalers : "checkpoints/scalers/scalers.pkl"
-                   target_normalizers : "checkpoints/scalers/target_normalizers.pkl"
-                   model_cfg : "checkpoints/configs/model_cfg.pkl"
-                   datamodule_cfg : "checkpoints/configs/datamodule_cfg.pkl"
-                   trainer_cfg : "checkpoints/configs/trainer_cfg.pkl"
-                   datamodule_metadata : "checkpoints/metadata/datamodule_metadata.pkl"
-                 skip: ["scalers"]
-              
-    - OR a more dangerous take - delete that entry from the yaml, but that would lead the loss of location of that artifact.
+    - add that to `exclude` in `pkg.save`.
+    - OR pass `list` of artifacts to `skip` param of `pkg.load`.
 
     It would use ``._load_from_checkpoint()`` of ``lightning`` for model ckpts.
     The cfgs would be loaded  using ``_load_configs()`` of the current implementation works (see above) - it would 
@@ -873,8 +839,8 @@ def load(self, ckpt_path):
         Path where the checkpoints (like model ckpts, cfgs etc) are stored.
     """
     # load the models and other artifacts here
-    # 1. Read the artifacts and see what to skip using "skip" key
-    #    1.1 In the alternative design, this skip param is passed to the method, and 
+    # 1. Read the artifacts 
+    #    1.1 If the user passed a list of artifacts to skip param,
     #         load method would simply skip those artifacts from the yaml file
     # 2. Load the artifacts
 

@@ -13,7 +13,7 @@ This step supersedes the earlier `save`/`load` step. That step established the p
 Preliminary discussions and implementations:
 
 - `skpro` issue [#1072](https://github.com/sktime/skpro/issues/1072) and PR [#1073](https://github.com/sktime/skpro/pull/1073), recursive serialization
-- `sktime` issue [#10450](https://github.com/sktime/sktime/issues/10450) and PR [#10453](https://github.com/sktime/sktime/pull/10453), native serialization
+- `sktime` design document [hackmd](https://hackmd.io/rShrR00UQrKcNo33P6dJBA), issue [#10450](https://github.com/sktime/sktime/issues/10450) and PR [#10453](https://github.com/sktime/sktime/pull/10453), native serialization
 - `sktime` issue [#10582](https://github.com/sktime/sktime/issues/10582), unifying the two designs
 
 ## Problem statement

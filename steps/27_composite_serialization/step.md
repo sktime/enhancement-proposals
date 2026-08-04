@@ -148,6 +148,12 @@ composite.zip
 
 Notice there's deliberately no top-level `manifest.json` anywhere. `_metadata` plus the two node-local index files already act as the manifest for that node, so anyone can understand a subtree just by looking inside its own directory — no need to cross-reference something at the root.
 
+### Multiple serialization formats
+
+Currently `serialization_format` supports only `"pickle"` and `"cloudpickle"`, but this is independent of native or composite serialization. The format only decides how `_metadata` and `_obj` are written at a single node; recursion, component references, and native backends never look at it, and `_artifacts` is unaffected since native backends always use their framework formats.
+
+So more formats can be added later without touching any of that. A format is just a name mapped to a dumps/loads pair, and each node uses one format for both its `_metadata` and its `_obj`, recording the name in `_metadata` so a reader knows what wrote the node. Children inherit the parent's format by default. The one requirement is that `_metadata` stays readable before the format is known, which holds as long as the name is stored as a plain string and `_metadata` itself is written in a form plain `pickle` can read.
+
 ## Save and load semantics
 
 **Saving** goes: validate tags, capture state, strip out skipped attributes, externalize native artifacts, assign local IDs to child identities, serialize `_obj` with component references in place, write `_metadata`, write `_artifacts` if there are any, recursively write each child under `_components`, and finally package it all up as a ZIP or an in-memory container. Saving must never mutate the source object — even if something fails partway through, any temporary state changes get restored in a `finally` block.
